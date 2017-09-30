@@ -1,4 +1,4 @@
-# Faktory-go
+# faktory_worker_go
 
 This repository provides a Faktory worker process for Go apps.  This
 worker process fetches background jobs from the Faktory server and processes them.
@@ -35,3 +35,7 @@ func main() {
   mgr.Start()
 }
 ```
+
+# License
+
+This codebase is licensed MPL-2.0. https://choosealicense.com/licenses/mpl-2.0/
