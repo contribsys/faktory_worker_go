@@ -10,32 +10,77 @@ Web UI, etc.
 
 # Installation
 
+You must install [Faktory](https://github.com/contribsys/faktory) first.
+Then:
+
 ```
 go get -u github.com/contribsys/faktory_worker_go
 ```
 
 # Usage
 
+To process background jobs, follow these steps:
+
+1. Register your jobs
+2. Set a few optional parameters
+3. Start the processing.
+
+To stop the process, send the TERM or INT signal.
+
 ```go
 import (
   worker "github.com/contribsys/faktory_worker_go"
 )
 
+func SomeWork(ctx worker.Context, args ...interface{}) error {
+  fmt.Println("Working on job", ctx.Jid)
+  return nil
+}
+
 func main() {
   mgr := worker.NewManager()
 
-  // register the types of jobs and how to process them
-  mgr.Register("SomeJob", func() worker.Worker { return &SomeWorker{} })
-  mgr.Register("AnotherJob", func() worker.Worker { return &AnotherWorker{} })
+  // register job types and how to instantiate a
+  // worker which can process them
+  mgr.Register("SomeJob", SomeWork)
+  //mgr.Register("AnotherJob", AnotherFunc)
 
   // use up to N goroutines to execute jobs
   mgr.Concurrency = 20
   // pull jobs from these queues, in this order of precedence
   mgr.Queues = []string{"critical", "default", "bulk"}
-  mgr.Start()
+  mgr.Run()
 }
 ```
 
+# FAQ
+
+* How do I specify the Faktory server location?
+
+By default, it will use localhost:7419 which is sufficient for local development.
+Use FAKTORY\_URL to specify the URL, e.g. `tcp://faktory.example.com:12345` or
+use FAKTORY\_PROVIDER to specify the environment variable which does
+contain the URL: FAKTORY\_PROVIDER=FAKTORYTOGO\_URL.  This level of
+indirection is useful for SaaSes, Heroku Addons, etc.
+
+* How do I push new jobs to Faktory?
+
+```go
+client, err := faktory.Open()
+job := faktory.NewJob("somejob", 1, 2, 3)
+err = client.Push(job)
+```
+
+See the Faktory client for
+[Go](https://github.com/contribsys/faktory/blob/master/client.go) or
+[Ruby](https://github.com/contribsys/faktory-ruby/blob/master/lib/faktory/client.rb).
+You can implement a Faktory client in any programming langauge.
+See [the wiki](https://github.com/contribsys/faktory/wiki) for details.
+
+# Author
+
+Mike Perham, @mperham
+
 # License
 
-This codebase is licensed MPL-2.0. https://choosealicense.com/licenses/mpl-2.0/
+This codebase is licensed via the Mozilla Public License, v2.0. https://choosealicense.com/licenses/mpl-2.0/

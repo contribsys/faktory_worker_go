@@ -13,12 +13,6 @@ import (
 	"github.com/mperham/faktory"
 )
 
-type Worker interface {
-	Perform(ctx context.Context, args map[string]interface{}) error
-}
-
-type Handler func() Worker
-
 var (
 	SIGTERM os.Signal = syscall.SIGTERM
 	SIGTSTP os.Signal = syscall.SIGTSTP
@@ -29,10 +23,10 @@ var (
  * Register a handler for the given jobtype.  It is expected that all jobtypes
  * are registered upon process startup.
  *
- * faktory_worker.Register("ImportantJob", func() { return &ImportantRunner{} })
+ * faktory_worker.Register("ImportantJob", ImportantFunc)
  */
-func (mgr *Manager) Register(name string, hand Handler) {
-	mgr.jobHandlers[name] = hand
+func (mgr *Manager) Register(name string, fn Perform) {
+	mgr.jobHandlers[name] = fn
 }
 
 type Manager struct {
@@ -44,7 +38,7 @@ type Manager struct {
 	// the system is shutting down.
 	done           chan interface{}
 	shutdownWaiter *sync.WaitGroup
-	jobHandlers    map[string]Handler
+	jobHandlers    map[string]Perform
 }
 
 func (mgr *Manager) Quiet() {
@@ -66,19 +60,15 @@ func NewManager() *Manager {
 
 		done:           make(chan interface{}),
 		shutdownWaiter: &sync.WaitGroup{},
-		jobHandlers:    map[string]Handler{},
+		jobHandlers:    map[string]Perform{},
 	}
 }
-
-// TODO
-// Thread pool
-// Dispatch
 
 /*
  * Start processing jobs.
  * This method does not return.
  */
-func (mgr *Manager) Start() {
+func (mgr *Manager) Run() {
 	if mgr.Pool == nil {
 		pool, err := NewChannelPool(0, mgr.Concurrency, func() (Closeable, error) { return faktory.Open() })
 		if err != nil {
@@ -167,14 +157,20 @@ func process(mgr *Manager, idx int) {
 
 		// execute
 		if job != nil {
-			handy := mgr.jobHandlers[job.Type]
-			if handy == nil {
+			perform := mgr.jobHandlers[job.Type]
+			if perform == nil {
 				mgr.with(func(c *faktory.Client) error {
-					return c.Fail(job.Jid, fmt.Errorf("No such handler: %s", job.Type), nil)
+					return c.Fail(job.Jid, fmt.Errorf("No handler for %s", job.Type), nil)
 				})
 			} else {
-				instance := handy()
-				instance.Perform(ctxFor(job), job.Args[0].(map[string]interface{}))
+				err := perform(ctxFor(job), job.Args...)
+				mgr.with(func(c *faktory.Client) error {
+					if err != nil {
+						return c.Fail(job.Jid, err, nil)
+					} else {
+						return c.Ack(job.Jid)
+					}
+				})
 			}
 		} else {
 			// if there are no jobs, Faktory will block us on
@@ -183,8 +179,21 @@ func process(mgr *Manager, idx int) {
 	}
 }
 
-func ctxFor(job *faktory.Job) context.Context {
-	return context.TODO()
+type DefaultContext struct {
+	context.Context
+
+	JID string
+}
+
+func (c *DefaultContext) Jid() string {
+	return c.JID
+}
+
+func ctxFor(job *faktory.Job) Context {
+	return &DefaultContext{
+		Context: context.TODO(),
+		JID:     job.Jid,
+	}
 }
 
 func (mgr *Manager) with(fn func(fky *faktory.Client) error) error {
