@@ -21,9 +21,9 @@ go get -u github.com/contribsys/faktory_worker_go
 
 To process background jobs, follow these steps:
 
-1. Register your jobs
+1. Register your job types and their associated funcs
 2. Set a few optional parameters
-3. Start the processing.
+3. Start the processing
 
 To stop the process, send the TERM or INT signal.
 
@@ -32,7 +32,7 @@ import (
   worker "github.com/contribsys/faktory_worker_go"
 )
 
-func SomeWork(ctx worker.Context, args ...interface{}) error {
+func someFunc(ctx worker.Context, args ...interface{}) error {
   fmt.Println("Working on job", ctx.Jid)
   return nil
 }
@@ -40,15 +40,17 @@ func SomeWork(ctx worker.Context, args ...interface{}) error {
 func main() {
   mgr := worker.NewManager()
 
-  // register job types and how to instantiate a
-  // worker which can process them
-  mgr.Register("SomeJob", SomeWork)
-  //mgr.Register("AnotherJob", AnotherFunc)
+  // register job types and the function to execute them
+  mgr.Register("SomeJob", someFunc)
+  //mgr.Register("AnotherJob", anotherFunc)
 
   // use up to N goroutines to execute jobs
   mgr.Concurrency = 20
+
   // pull jobs from these queues, in this order of precedence
   mgr.Queues = []string{"critical", "default", "bulk"}
+
+  // Start processing jobs, this method does not return
   mgr.Run()
 }
 ```

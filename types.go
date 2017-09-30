@@ -13,7 +13,7 @@ const (
  * along with a select few additions for job processing.
  *
  * We're pretty strict about what's exposed in the Context
- * because worker execution should be orthogonal to
+ * because execution should be orthogonal to
  * most of the Job payload contents.
  */
 type Context interface {
