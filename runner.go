@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mperham/faktory"
+	"github.com/mperham/faktory/util"
 )
 
 var (
@@ -48,8 +49,11 @@ func (mgr *Manager) Quiet() {
 // Signals that the various components should shutdown.
 // Blocks on the shutdownWaiter until all components have finished.
 func (mgr *Manager) Terminate() {
+	util.Info("Shutting down...")
 	close(mgr.done)
 	mgr.shutdownWaiter.Wait()
+	mgr.Pool.Close()
+	util.Info("Goodbye")
 	os.Exit(0)
 }
 
@@ -139,8 +143,10 @@ func handleSignal(sig os.Signal, mgr *Manager) {
 }
 
 func process(mgr *Manager, idx int) {
+	mgr.shutdownWaiter.Add(1)
 	// delay initial fetch randomly to prevent thundering herd.
 	time.Sleep(time.Duration(rand.Int31()))
+	defer mgr.shutdownWaiter.Done()
 
 	for {
 		// fetch job
@@ -182,6 +188,14 @@ func process(mgr *Manager, idx int) {
 			// if there are no jobs, Faktory will block us on
 			// the first queue, so no need to poll or sleep
 		}
+
+		// check for shutdown
+		select {
+		case <-mgr.done:
+			return
+		default:
+		}
+
 	}
 }
 
