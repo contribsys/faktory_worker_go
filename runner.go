@@ -155,6 +155,12 @@ func process(mgr *Manager, idx int) {
 			return nil
 		})
 
+		if err != nil {
+			fmt.Println(err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
 		// execute
 		if job != nil {
 			perform := mgr.jobHandlers[job.Type]
@@ -191,7 +197,7 @@ func (c *DefaultContext) Jid() string {
 
 func ctxFor(job *faktory.Job) Context {
 	return &DefaultContext{
-		Context: context.TODO(),
+		Context: context.Background(),
 		JID:     job.Jid,
 	}
 }
@@ -201,11 +207,12 @@ func (mgr *Manager) with(fn func(fky *faktory.Client) error) error {
 	if err != nil {
 		return err
 	}
-	f, ok := conn.(*faktory.Client)
+	pc := conn.(*PoolConn)
+	f, ok := pc.Closeable.(*faktory.Client)
 	if !ok {
-		return fmt.Errorf("Connection is not a Faktory client instance: %v", f)
+		return fmt.Errorf("Connection is not a Faktory client instance: %+v", conn)
 	}
 	err = fn(f)
-	f.Close()
+	conn.Close()
 	return err
 }
