@@ -33,7 +33,7 @@ import (
 )
 
 func someFunc(ctx worker.Context, args ...interface{}) error {
-  fmt.Println("Working on job", ctx.Jid)
+  fmt.Println("Working on job", ctx.Jid())
   return nil
 }
 
