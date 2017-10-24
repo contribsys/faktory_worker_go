@@ -55,6 +55,8 @@ func main() {
 }
 ```
 
+See `test/main.go` for a working example.
+
 # FAQ
 
 * How do I specify the Faktory server location?

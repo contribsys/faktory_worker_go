@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/contribsys/faktory"
+	"github.com/contribsys/faktory/util"
 	worker "github.com/contribsys/faktory_worker_go"
-	"github.com/mperham/faktory/util"
 )
 
 func someFunc(ctx worker.Context, args ...interface{}) error {
@@ -27,11 +28,30 @@ func main() {
 	//mgr.Register("AnotherJob", anotherFunc)
 
 	// use up to N goroutines to execute jobs
-	mgr.Concurrency = 2
+	mgr.Concurrency = 20
 
 	// pull jobs from these queues, in this order of precedence
 	mgr.Queues = []string{"critical", "default", "bulk"}
 
+	go producer()
+
 	// Start processing jobs, this method does not return
 	mgr.Run()
+}
+
+// Push something for us to work on.
+func producer() {
+	cl, err := faktory.Open()
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		err := cl.Push(faktory.NewJob("SomeJob", 1, 2, "hello"))
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(cl.Info())
+		time.Sleep(1 * time.Second)
+	}
 }
