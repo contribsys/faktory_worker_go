@@ -34,7 +34,9 @@ var (
 	ErrClosed = errors.New("pool is closed")
 )
 
+// Closeable interface describes a closable implementation.  The underlying procedure of the Close() function is determined by its implementation  
 type Closeable interface {
+        // Close closes the object
 	Close() error
 }
 
@@ -63,7 +65,7 @@ type PoolConn struct {
 	unusable bool
 }
 
-// Close() puts the given connects back to the pool instead of closing it.
+// Close puts the given connects back to the pool instead of closing it.
 func (p *PoolConn) Close() error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -77,14 +79,14 @@ func (p *PoolConn) Close() error {
 	return p.c.put(p.Closeable)
 }
 
-// MarkUnusable() marks the connection not usable any more, to let the pool close it instead of returning it to pool.
+// MarkUnusable marks the connection not usable any more, to let the pool close it instead of returning it to pool.
 func (p *PoolConn) MarkUnusable() {
 	p.mu.Lock()
 	p.unusable = true
 	p.mu.Unlock()
 }
 
-// newConn wraps a standard net.Conn to a poolConn net.Conn.
+// wrapConn wraps a standard net.Conn to a poolConn net.Conn.
 func (c *channelPool) wrapConn(conn Closeable) Closeable {
 	p := &PoolConn{c: c}
 	p.Closeable = conn
@@ -195,6 +197,7 @@ func (c *channelPool) put(conn Closeable) error {
 	}
 }
 
+// Close shuts down all of the Closeable objects in the Pool
 func (c *channelPool) Close() {
 	c.mu.Lock()
 	conns := c.conns
@@ -212,4 +215,5 @@ func (c *channelPool) Close() {
 	}
 }
 
+// Len returns the number of Closeable objects in the Pool
 func (c *channelPool) Len() int { return len(c.getConns()) }

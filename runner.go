@@ -15,21 +15,23 @@ import (
 )
 
 var (
+        // SIGTERM is an alias for syscall.SIGTERM
 	SIGTERM os.Signal = syscall.SIGTERM
+        // SIGTSTP is an alias for syscall.SIGSTP
 	SIGTSTP os.Signal = syscall.SIGTSTP
+        // SIGINT is and alias for syscall.SIGINT
 	SIGINT  os.Signal = os.Interrupt
 )
 
-/*
- * Register a handler for the given jobtype.  It is expected that all jobtypes
- * are registered upon process startup.
- *
- * faktory_worker.Register("ImportantJob", ImportantFunc)
- */
+// Register registers a handler for the given jobtype.  It is expected that all jobtypes
+// are registered upon process startup.
+//
+// faktory_worker.Register("ImportantJob", ImportantFunc)
 func (mgr *Manager) Register(name string, fn Perform) {
 	mgr.jobHandlers[name] = fn
 }
 
+// Manager coordinates the processes for the worker.  It is responsible for starting and stopping goroutines to perform work at the desired concurrency level
 type Manager struct {
 	Concurrency int
 	Queues      []string
@@ -42,11 +44,12 @@ type Manager struct {
 	jobHandlers    map[string]Perform
 }
 
+// Quiet is not yet implemented
 func (mgr *Manager) Quiet() {
 	// TODO
 }
 
-// Signals that the various components should shutdown.
+// Terminate signals that the various components should shutdown.
 // Blocks on the shutdownWaiter until all components have finished.
 func (mgr *Manager) Terminate() {
 	util.Info("Shutting down...")
@@ -57,6 +60,7 @@ func (mgr *Manager) Terminate() {
 	os.Exit(0)
 }
 
+// NewManager returns a new manager with default values.
 func NewManager() *Manager {
 	return &Manager{
 		Concurrency: 20,
@@ -68,10 +72,8 @@ func NewManager() *Manager {
 	}
 }
 
-/*
- * Start processing jobs.
- * This method does not return.
- */
+// Run starts processing jobs.
+// This method does not return.
 func (mgr *Manager) Run() {
 	if mgr.Pool == nil {
 		pool, err := NewChannelPool(0, mgr.Concurrency, func() (Closeable, error) { return faktory.Open() })
@@ -199,12 +201,14 @@ func process(mgr *Manager, idx int) {
 	}
 }
 
+// DefaultContext embeds Go's standard context and associates it with a job ID.
 type DefaultContext struct {
 	context.Context
 
 	JID string
 }
 
+// Jid returns the job ID for the default context
 func (c *DefaultContext) Jid() string {
 	return c.JID
 }
