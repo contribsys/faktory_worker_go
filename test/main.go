@@ -10,9 +10,9 @@ import (
 )
 
 func someFunc(ctx worker.Context, args ...interface{}) error {
-	fmt.Println("Working on job", ctx.Jid())
-	fmt.Println("Context", ctx)
-	fmt.Println("Args", args)
+	util.Infof("Working on job %s", ctx.Jid())
+	util.Infof("Context %v", ctx)
+	util.Infof("Args %v", args)
 	time.Sleep(1 * time.Second)
 	return nil
 }
@@ -33,25 +33,34 @@ func main() {
 	// pull jobs from these queues, in this order of precedence
 	mgr.Queues = []string{"critical", "default", "bulk"}
 
-	go producer()
+	var quit bool
+	mgr.On(worker.Shutdown, func() {
+		quit = true
+	})
+	go func() {
+		for {
+			if quit {
+				return
+			}
+			produce()
+			time.Sleep(1 * time.Second)
+		}
+	}()
 
 	// Start processing jobs, this method does not return
 	mgr.Run()
 }
 
 // Push something for us to work on.
-func producer() {
+func produce() {
 	cl, err := faktory.Open()
 	if err != nil {
 		panic(err)
 	}
 
-	for {
-		err := cl.Push(faktory.NewJob("SomeJob", 1, 2, "hello"))
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(cl.Info())
-		time.Sleep(1 * time.Second)
+	err = cl.Push(faktory.NewJob("SomeJob", 1, 2, "hello"))
+	if err != nil {
+		panic(err)
 	}
+	fmt.Println(cl.Info())
 }

@@ -15,12 +15,20 @@ import (
 )
 
 var (
-        // SIGTERM is an alias for syscall.SIGTERM
+	// SIGTERM is an alias for syscall.SIGTERM
 	SIGTERM os.Signal = syscall.SIGTERM
-        // SIGTSTP is an alias for syscall.SIGSTP
+	// SIGTSTP is an alias for syscall.SIGSTP
 	SIGTSTP os.Signal = syscall.SIGTSTP
-        // SIGINT is and alias for syscall.SIGINT
-	SIGINT  os.Signal = os.Interrupt
+	// SIGINT is and alias for syscall.SIGINT
+	SIGINT os.Signal = os.Interrupt
+)
+
+type eventType int
+
+const (
+	Startup  eventType = 1
+	Quiet    eventType = 2
+	Shutdown eventType = 3
 )
 
 // Register registers a handler for the given jobtype.  It is expected that all jobtypes
@@ -31,22 +39,34 @@ func (mgr *Manager) Register(name string, fn Perform) {
 	mgr.jobHandlers[name] = fn
 }
 
-// Manager coordinates the processes for the worker.  It is responsible for starting and stopping goroutines to perform work at the desired concurrency level
+// Manager coordinates the processes for the worker.  It is responsible for
+// starting and stopping goroutines to perform work at the desired concurrency level
 type Manager struct {
 	Concurrency int
 	Queues      []string
 	Pool
 
+	quiet bool
 	// The done channel will always block unless
 	// the system is shutting down.
 	done           chan interface{}
 	shutdownWaiter *sync.WaitGroup
 	jobHandlers    map[string]Perform
+	eventHandlers  map[eventType][]func()
 }
 
-// Quiet is not yet implemented
+// Register a callback to be fired when a process lifecycle event occurs.
+// These are useful for hooking into process startup or shutdown.
+func (mgr *Manager) On(event eventType, fn func()) {
+	mgr.eventHandlers[event] = append(mgr.eventHandlers[event], fn)
+}
+
+// After calling Quiet(), no more jobs will be pulled
+// from Faktory by this process.
 func (mgr *Manager) Quiet() {
-	// TODO
+	util.Info("Quieting...")
+	mgr.quiet = true
+	mgr.fireEvent(Quiet)
 }
 
 // Terminate signals that the various components should shutdown.
@@ -54,6 +74,7 @@ func (mgr *Manager) Quiet() {
 func (mgr *Manager) Terminate() {
 	util.Info("Shutting down...")
 	close(mgr.done)
+	mgr.fireEvent(Shutdown)
 	mgr.shutdownWaiter.Wait()
 	mgr.Pool.Close()
 	util.Info("Goodbye")
@@ -69,6 +90,11 @@ func NewManager() *Manager {
 		done:           make(chan interface{}),
 		shutdownWaiter: &sync.WaitGroup{},
 		jobHandlers:    map[string]Perform{},
+		eventHandlers: map[eventType][]func(){
+			Startup:  []func(){},
+			Quiet:    []func(){},
+			Shutdown: []func(){},
+		},
 	}
 }
 
@@ -82,6 +108,8 @@ func (mgr *Manager) Run() {
 		}
 		mgr.Pool = pool
 	}
+
+	mgr.fireEvent(Startup)
 
 	go heartbeat(mgr)
 
@@ -151,6 +179,10 @@ func process(mgr *Manager, idx int) {
 	defer mgr.shutdownWaiter.Done()
 
 	for {
+		if mgr.quiet {
+			return
+		}
+
 		// fetch job
 		var job *faktory.Job
 		var err error
@@ -198,6 +230,12 @@ func process(mgr *Manager, idx int) {
 		default:
 		}
 
+	}
+}
+
+func (mgr *Manager) fireEvent(event eventType) {
+	for _, fn := range mgr.eventHandlers[event] {
+		fn()
 	}
 }
 
