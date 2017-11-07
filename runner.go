@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -101,6 +102,10 @@ func NewManager() *Manager {
 // Run starts processing jobs.
 // This method does not return.
 func (mgr *Manager) Run() {
+	// This will signal to Faktory that all connections from this process
+	// are worker connections.
+	faktory.RandomProcessWid = strconv.FormatInt(rand.Int63(), 32)
+
 	if mgr.Pool == nil {
 		pool, err := NewChannelPool(0, mgr.Concurrency, func() (Closeable, error) { return faktory.Open() })
 		if err != nil {
