@@ -3,6 +3,7 @@ package faktory_worker
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"github.com/contribsys/faktory"
-	"github.com/contribsys/faktory/util"
 )
 
 var (
@@ -65,7 +65,7 @@ func (mgr *Manager) On(event eventType, fn func()) {
 // After calling Quiet(), no more jobs will be pulled
 // from Faktory by this process.
 func (mgr *Manager) Quiet() {
-	util.Info("Quieting...")
+	log.Println("Quieting...")
 	mgr.quiet = true
 	mgr.fireEvent(Quiet)
 }
@@ -73,12 +73,12 @@ func (mgr *Manager) Quiet() {
 // Terminate signals that the various components should shutdown.
 // Blocks on the shutdownWaiter until all components have finished.
 func (mgr *Manager) Terminate() {
-	util.Info("Shutting down...")
+	log.Println("Shutting down...")
 	close(mgr.done)
 	mgr.fireEvent(Shutdown)
 	mgr.shutdownWaiter.Wait()
 	mgr.Pool.Close()
-	util.Info("Goodbye")
+	log.Println("Goodbye")
 	os.Exit(0)
 }
 
