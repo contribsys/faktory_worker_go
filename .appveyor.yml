@@ -13,6 +13,6 @@ install:
 build: false
 
 test_script:
-  - go get -d -u github.com/contribsys/faktory
-  - go build test/main.go
+  #- go get -d -u github.com/contribsys/faktory
+  - go build -x -v -n -i test/main.go
   - go test
