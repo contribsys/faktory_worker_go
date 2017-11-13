@@ -1,4 +1,4 @@
-clone_folder: c:\gopath\src\github.com\contribsys\faktory
+clone_folder: c:\gopath\src\github.com\contribsys\faktory_worker_go
 
 environment:
   GOPATH: c:\gopath
