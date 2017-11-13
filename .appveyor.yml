@@ -1,0 +1,17 @@
+clone_folder: c:\gopath\src\github.com\contribsys\faktory
+
+environment:
+  GOPATH: c:\gopath
+
+install:
+  - echo %PATH%
+  - echo %GOPATH%
+  - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
+  - go version
+  - go env
+
+build_script:
+  - go build test/main.go
+
+test_script:
+  - go test
