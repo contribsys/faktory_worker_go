@@ -5,10 +5,9 @@ import (
 )
 
 const (
-        // Version is the current version
-	Version = "0.5.0"
+	// Version is the current version
+	Version = "0.6.1"
 )
-
 
 // Context provides Go's standard Context pattern
 // along with a select few additions for job processing.
@@ -21,7 +20,6 @@ type Context interface {
 
 	Jid() string
 }
-
 
 // Perform actually executes the job.
 // It must be thread-safe.
