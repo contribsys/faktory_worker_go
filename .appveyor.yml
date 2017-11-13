@@ -10,6 +10,9 @@ install:
   - go version
   - go env
 
+before_build:
+  - go get -u github.com/contribsys/faktory
+
 build_script:
   - go build test/main.go
 
