@@ -2,24 +2,22 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/contribsys/faktory"
-	"github.com/contribsys/faktory/util"
 	worker "github.com/contribsys/faktory_worker_go"
 )
 
 func someFunc(ctx worker.Context, args ...interface{}) error {
-	util.Infof("Working on job %s", ctx.Jid())
-	util.Infof("Context %v", ctx)
-	util.Infof("Args %v", args)
+	log.Printf("Working on job %s\n", ctx.Jid())
+	log.Printf("Context %v\n", ctx)
+	log.Printf("Args %v\n", args)
 	time.Sleep(1 * time.Second)
 	return nil
 }
 
 func main() {
-	util.LogInfo = true
-
 	mgr := worker.NewManager()
 
 	// register job types and the function to execute them
