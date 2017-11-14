@@ -13,6 +13,7 @@ install:
 build: false
 
 test_script:
-  - go get -x -v -n -d -u github.com/contribsys/faktory
-  - go build -x -v -n -i test/main.go
+  - go get -u github.com/contribsys/faktory
+  - go get -u github.com/stretchr/testify/assert
+  - go build test/main.go
   - go test
