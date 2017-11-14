@@ -6,22 +6,11 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"os/signal"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/contribsys/faktory"
-)
-
-var (
-	// SIGTERM is an alias for syscall.SIGTERM
-	SIGTERM os.Signal = syscall.SIGTERM
-	// SIGTSTP is an alias for syscall.SIGSTP
-	SIGTSTP os.Signal = syscall.SIGTSTP
-	// SIGINT is and alias for syscall.SIGINT
-	SIGINT os.Signal = os.Interrupt
 )
 
 type eventType int
@@ -122,10 +111,7 @@ func (mgr *Manager) Run() {
 		go process(mgr, i)
 	}
 
-	sigchan := make(chan os.Signal)
-	signal.Notify(sigchan, SIGINT)
-	signal.Notify(sigchan, SIGTERM)
-	signal.Notify(sigchan, SIGTSTP)
+	sigchan := hookSignals()
 
 	for {
 		sig := <-sigchan
