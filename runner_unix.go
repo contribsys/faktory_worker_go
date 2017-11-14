@@ -1,4 +1,5 @@
 // +build unix
+
 package faktory_worker
 
 import (
