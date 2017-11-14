@@ -115,7 +115,7 @@ func (mgr *Manager) Run() {
 
 	for {
 		sig := <-sigchan
-		handleSignal(sig, mgr)
+		handleEvent(signalMap[sig], mgr)
 	}
 }
 
@@ -131,9 +131,9 @@ func heartbeat(mgr *Manager) {
 				sig, err := c.Beat()
 				if sig != "" {
 					if sig == "terminate" {
-						handleSignal(SIGTERM, mgr)
+						handleEvent(Shutdown, mgr)
 					} else if sig == "quiet" {
-						handleSignal(SIGTSTP, mgr)
+						handleEvent(Quiet, mgr)
 					}
 				}
 				return err
@@ -146,17 +146,13 @@ func heartbeat(mgr *Manager) {
 	}
 }
 
-func handleSignal(sig os.Signal, mgr *Manager) {
+func handleEvent(sig eventType, mgr *Manager) {
 	switch sig {
-	case SIGTERM:
+	case Shutdown:
 		go func() {
 			mgr.Terminate()
 		}()
-	case SIGINT:
-		go func() {
-			mgr.Terminate()
-		}()
-	case SIGTSTP:
+	case Quiet:
 		go func() {
 			mgr.Quiet()
 		}()

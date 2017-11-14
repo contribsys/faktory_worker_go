@@ -1,4 +1,4 @@
-// +build unix
+// +build linux bsd darwin
 
 package faktory_worker
 
@@ -15,6 +15,12 @@ var (
 	SIGTSTP os.Signal = syscall.SIGTSTP
 	// SIGINT is and alias for syscall.SIGINT
 	SIGINT os.Signal = os.Interrupt
+
+	signalMap = map[os.Signal]eventType{
+		SIGTERM: Shutdown,
+		SIGINT:  Shutdown,
+		SIGTSTP: Quiet,
+	}
 )
 
 func hookSignals() chan os.Signal {
