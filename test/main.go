@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/contribsys/faktory"
+	faktory "github.com/contribsys/faktory/client"
 	worker "github.com/contribsys/faktory_worker_go"
 )
 
