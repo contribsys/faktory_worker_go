@@ -70,13 +70,17 @@ indirection is useful for SaaSes, Heroku Addons, etc.
 * How do I push new jobs to Faktory?
 
 ```go
+import (
+  faktory github.com/contribsys/faktory/client
+)
+
 client, err := faktory.Open()
 job := faktory.NewJob("somejob", 1, 2, 3)
 err = client.Push(job)
 ```
 
 See the Faktory client for
-[Go](https://github.com/contribsys/faktory/blob/master/client.go) or
+[Go](https://github.com/contribsys/faktory/blob/master/client/client.go) or
 [Ruby](https://github.com/contribsys/faktory-ruby/blob/master/lib/faktory/client.rb).
 You can implement a Faktory client in any programming langauge.
 See [the wiki](https://github.com/contribsys/faktory/wiki) for details.
