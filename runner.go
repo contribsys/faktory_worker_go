@@ -183,7 +183,7 @@ func process(mgr *Manager, idx int) {
 		})
 
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
