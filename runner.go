@@ -3,7 +3,6 @@ package faktory_worker
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"strconv"
@@ -35,6 +34,7 @@ type Manager struct {
 	Concurrency int
 	Queues      []string
 	Pool
+	Logger      Logger
 
 	quiet bool
 	// The done channel will always block unless
@@ -54,7 +54,7 @@ func (mgr *Manager) On(event eventType, fn func()) {
 // After calling Quiet(), no more jobs will be pulled
 // from Faktory by this process.
 func (mgr *Manager) Quiet() {
-	log.Println("Quieting...")
+	mgr.Logger.Info("Quieting...")
 	mgr.quiet = true
 	mgr.fireEvent(Quiet)
 }
@@ -62,12 +62,12 @@ func (mgr *Manager) Quiet() {
 // Terminate signals that the various components should shutdown.
 // Blocks on the shutdownWaiter until all components have finished.
 func (mgr *Manager) Terminate() {
-	log.Println("Shutting down...")
+	mgr.Logger.Info("Shutting down...")
 	close(mgr.done)
 	mgr.fireEvent(Shutdown)
 	mgr.shutdownWaiter.Wait()
 	mgr.Pool.Close()
-	log.Println("Goodbye")
+	mgr.Logger.Info("Goodbye")
 	os.Exit(0)
 }
 
@@ -76,6 +76,7 @@ func NewManager() *Manager {
 	return &Manager{
 		Concurrency: 20,
 		Queues:      []string{"default"},
+		Logger:      NewStdLogger(),
 
 		done:           make(chan interface{}),
 		shutdownWaiter: &sync.WaitGroup{},
@@ -183,7 +184,7 @@ func process(mgr *Manager, idx int) {
 		})
 
 		if err != nil {
-			log.Println(err)
+			mgr.Logger.Error(err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
