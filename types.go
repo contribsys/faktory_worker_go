@@ -19,8 +19,12 @@ type Context interface {
 	context.Context
 
 	Jid() string
+	JobType() string
 }
 
 // Perform actually executes the job.
 // It must be thread-safe.
 type Perform func(ctx Context, args ...interface{}) error
+
+// MiddlewareFunc defines a function to process middleware.
+type MiddlewareFunc func(Perform) Perform

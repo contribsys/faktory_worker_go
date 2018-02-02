@@ -19,6 +19,14 @@ func someFunc(ctx worker.Context, args ...interface{}) error {
 
 func main() {
 	mgr := worker.NewManager()
+	mgr.Use(func(perform worker.Perform) worker.Perform {
+		return func(ctx worker.Context, args ...interface{}) error {
+			log.Printf("Starting work on job %s of type %s\n", ctx.Jid(), ctx.JobType())
+			err := perform(ctx, args...)
+			log.Printf("Finished work on job %s with error %v\n", ctx.Jid(), err)
+			return err
+		}
+	})
 
 	// register job types and the function to execute them
 	mgr.Register("SomeJob", someFunc)

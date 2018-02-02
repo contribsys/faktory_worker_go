@@ -36,7 +36,8 @@ type Manager struct {
 	Queues      []string
 	Pool
 
-	quiet bool
+	middleware []MiddlewareFunc
+	quiet      bool
 	// The done channel will always block unless
 	// the system is shutting down.
 	done           chan interface{}
@@ -69,6 +70,11 @@ func (mgr *Manager) Terminate() {
 	mgr.Pool.Close()
 	log.Println("Goodbye")
 	os.Exit(0)
+}
+
+// Use adds middleware to the chain.
+func (mgr *Manager) Use(middleware ...MiddlewareFunc) {
+	mgr.middleware = append(mgr.middleware, middleware...)
 }
 
 // NewManager returns a new manager with default values.
@@ -196,7 +202,12 @@ func process(mgr *Manager, idx int) {
 					return c.Fail(job.Jid, fmt.Errorf("No handler for %s", job.Type), nil)
 				})
 			} else {
-				err := perform(ctxFor(job), job.Args...)
+				h := perform
+				for i := len(mgr.middleware) - 1; i >= 0; i-- {
+					h = mgr.middleware[i](h)
+				}
+
+				err := h(ctxFor(job), job.Args...)
 				mgr.with(func(c *faktory.Client) error {
 					if err != nil {
 						return c.Fail(job.Jid, err, nil)
@@ -230,7 +241,8 @@ func (mgr *Manager) fireEvent(event eventType) {
 type DefaultContext struct {
 	context.Context
 
-	JID string
+	JID  string
+	Type string
 }
 
 // Jid returns the job ID for the default context
@@ -238,10 +250,16 @@ func (c *DefaultContext) Jid() string {
 	return c.JID
 }
 
+// JobType returns the job type for the default context
+func (c *DefaultContext) JobType() string {
+	return c.Type
+}
+
 func ctxFor(job *faktory.Job) Context {
 	return &DefaultContext{
 		Context: context.Background(),
 		JID:     job.Jid,
+		Type:    job.Type,
 	}
 }
 
