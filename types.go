@@ -2,6 +2,8 @@ package faktory_worker
 
 import (
 	"context"
+
+	faktory "github.com/contribsys/faktory/client"
 )
 
 const (
@@ -26,5 +28,7 @@ type Context interface {
 // It must be thread-safe.
 type Perform func(ctx Context, args ...interface{}) error
 
+type Handler func(ctx Context, job *faktory.Job) error
+
 // MiddlewareFunc defines a function to process middleware.
-type MiddlewareFunc func(Perform) Perform
+type MiddlewareFunc func(Handler) Handler

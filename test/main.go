@@ -19,10 +19,10 @@ func someFunc(ctx worker.Context, args ...interface{}) error {
 
 func main() {
 	mgr := worker.NewManager()
-	mgr.Use(func(perform worker.Perform) worker.Perform {
-		return func(ctx worker.Context, args ...interface{}) error {
-			log.Printf("Starting work on job %s of type %s\n", ctx.Jid(), ctx.JobType())
-			err := perform(ctx, args...)
+	mgr.Use(func(perform worker.Handler) worker.Handler {
+		return func(ctx worker.Context, job *faktory.Job) error {
+			log.Printf("Starting work on job %s of type %s with custom %v\n", ctx.Jid(), ctx.JobType(), job.Custom)
+			err := perform(ctx, job)
 			log.Printf("Finished work on job %s with error %v\n", ctx.Jid(), err)
 			return err
 		}
@@ -64,7 +64,11 @@ func produce() {
 		panic(err)
 	}
 
-	err = cl.Push(faktory.NewJob("SomeJob", 1, 2, "hello"))
+	job := faktory.NewJob("SomeJob", 1, 2, "hello")
+	job.Custom = map[string]interface{}{
+		"hello": "world",
+	}
+	err = cl.Push(job)
 	if err != nil {
 		panic(err)
 	}

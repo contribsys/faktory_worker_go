@@ -26,7 +26,9 @@ const (
 //
 // faktory_worker.Register("ImportantJob", ImportantFunc)
 func (mgr *Manager) Register(name string, fn Perform) {
-	mgr.jobHandlers[name] = fn
+	mgr.jobHandlers[name] = func(ctx Context, job *faktory.Job) error {
+		return fn(ctx, job.Args...)
+	}
 }
 
 // Manager coordinates the processes for the worker.  It is responsible for
@@ -42,7 +44,7 @@ type Manager struct {
 	// the system is shutting down.
 	done           chan interface{}
 	shutdownWaiter *sync.WaitGroup
-	jobHandlers    map[string]Perform
+	jobHandlers    map[string]Handler
 	eventHandlers  map[eventType][]func()
 }
 
@@ -85,7 +87,7 @@ func NewManager() *Manager {
 
 		done:           make(chan interface{}),
 		shutdownWaiter: &sync.WaitGroup{},
-		jobHandlers:    map[string]Perform{},
+		jobHandlers:    map[string]Handler{},
 		eventHandlers: map[eventType][]func(){
 			Startup:  []func(){},
 			Quiet:    []func(){},
@@ -207,7 +209,7 @@ func process(mgr *Manager, idx int) {
 					h = mgr.middleware[i](h)
 				}
 
-				err := h(ctxFor(job), job.Args...)
+				err := h(ctxFor(job), job)
 				mgr.with(func(c *faktory.Client) error {
 					if err != nil {
 						return c.Fail(job.Jid, err, nil)
