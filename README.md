@@ -71,7 +71,7 @@ indirection is useful for SaaSes, Heroku Addons, etc.
 
 ```go
 import (
-  faktory github.com/contribsys/faktory/client
+  faktory "github.com/contribsys/faktory/client"
 )
 
 client, err := faktory.Open()
