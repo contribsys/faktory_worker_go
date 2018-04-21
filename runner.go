@@ -277,6 +277,9 @@ func (mgr *Manager) with(fn func(fky *faktory.Client) error) error {
 		return fmt.Errorf("Connection is not a Faktory client instance: %+v", conn)
 	}
 	err = fn(f)
+	if err != nil {
+		pc.MarkUnusable()
+	}
 	conn.Close()
 	return err
 }
