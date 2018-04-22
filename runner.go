@@ -103,6 +103,7 @@ func NewManager() *Manager {
 func (mgr *Manager) Run() {
 	// This will signal to Faktory that all connections from this process
 	// are worker connections.
+	rand.Seed(time.Now().UnixNano())
 	faktory.RandomProcessWid = strconv.FormatInt(rand.Int63(), 32)
 
 	if mgr.Pool == nil {
