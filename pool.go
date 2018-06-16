@@ -34,9 +34,9 @@ var (
 	ErrClosed = errors.New("pool is closed")
 )
 
-// Closeable interface describes a closable implementation.  The underlying procedure of the Close() function is determined by its implementation  
+// Closeable interface describes a closable implementation.  The underlying procedure of the Close() function is determined by its implementation
 type Closeable interface {
-        // Close closes the object
+	// Close closes the object
 	Close() error
 }
 
