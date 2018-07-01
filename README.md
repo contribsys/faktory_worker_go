@@ -75,7 +75,7 @@ import (
 )
 
 client, err := faktory.Open()
-job := faktory.NewJob("somejob", 1, 2, 3)
+job := faktory.NewJob("SomeJob", 1, 2, 3)
 err = client.Push(job)
 ```
 
