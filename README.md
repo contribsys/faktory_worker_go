@@ -1,5 +1,7 @@
 # faktory_worker_go
 
+![travis](https://travis-ci.org/contribsys/faktory_worker_go.svg?branch=master)
+
 This repository provides a Faktory worker process for Go apps.  This
 worker process fetches background jobs from the Faktory server and processes them.
 
