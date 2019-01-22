@@ -34,9 +34,8 @@ func (mgr *Manager) Register(name string, fn Perform) {
 // Manager coordinates the processes for the worker.  It is responsible for
 // starting and stopping goroutines to perform work at the desired concurrency level
 type Manager struct {
-	Concurrency  int
-	Queues       []string
-	QueueWeights []int
+	Concurrency int
+	Queues      []string
 	Pool
 	Logger Logger
 
