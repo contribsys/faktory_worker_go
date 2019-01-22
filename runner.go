@@ -34,8 +34,9 @@ func (mgr *Manager) Register(name string, fn Perform) {
 // Manager coordinates the processes for the worker.  It is responsible for
 // starting and stopping goroutines to perform work at the desired concurrency level
 type Manager struct {
-	Concurrency int
-	Queues      []string
+	Concurrency  int
+	Queues       []string
+	QueueWeights []int
 	Pool
 	Logger Logger
 
@@ -47,6 +48,10 @@ type Manager struct {
 	shutdownWaiter *sync.WaitGroup
 	jobHandlers    map[string]Handler
 	eventHandlers  map[eventType][]func()
+
+	// This only needs to be computed once. Store it here to keep things fast.
+	weightedQueuesEnabled bool
+	weightedQueues        []string
 }
 
 // Register a callback to be fired when a process lifecycle event occurs.
@@ -95,6 +100,8 @@ func NewManager() *Manager {
 			Quiet:    []func(){},
 			Shutdown: []func(){},
 		},
+		weightedQueuesEnabled: false,
+		weightedQueues:        []string{},
 	}
 }
 
@@ -128,6 +135,76 @@ func (mgr *Manager) Run() {
 		sig := <-sigchan
 		handleEvent(signalMap[sig], mgr)
 	}
+}
+
+// UseWeightedQueues sets weights for the queues.
+func (mgr *Manager) UseWeightedQueues(weights []int) {
+	mgr.weightedQueuesEnabled = true
+	mgr.weightedQueues = expandWeightedQueues(mgr.Queues, weights)
+}
+
+func expandWeightedQueues(queues []string, weights []int) []string {
+	weightsTotal := 0
+	for _, queueWeight := range weights {
+		weightsTotal += queueWeight
+	}
+
+	weightedQueues := make([]string, weightsTotal, weightsTotal)
+	fillIndex := 0
+
+	for weightIndex, queue := range queues {
+		nTimes := weights[weightIndex]
+		// Fill weightedQueues with queue n times
+		for idx := 0; idx < nTimes; idx++ {
+			weightedQueues[fillIndex] = queue
+			fillIndex++
+		}
+	}
+
+	return weightedQueues
+}
+
+func (mgr *Manager) getQueues() []string {
+	if !mgr.weightedQueuesEnabled {
+		return mgr.Queues
+	}
+
+	sq := shuffleQueues(mgr.weightedQueues)
+	return uniqQueues(len(mgr.Queues), sq)
+}
+
+// shuffleQueues returns a copy of the slice with the elements shuffled.
+func shuffleQueues(queues []string) []string {
+	wq := make([]string, len(queues))
+	copy(wq, queues)
+
+	rand.Shuffle(len(wq), func(i, j int) {
+		wq[i], wq[j] = wq[j], wq[i]
+	})
+
+	return wq
+}
+
+// uniqQueues returns a slice of length len, of the unique elements while maintaining order.
+// The underlying array is modified to avoid allocating another one.
+func uniqQueues(len int, queues []string) []string {
+	// Record the unique values and position.
+	pos := 0
+	uniqMap := make(map[string]int)
+	for _, v := range queues {
+		if _, ok := uniqMap[v]; !ok {
+			uniqMap[v] = pos
+			pos++
+		}
+	}
+
+	// Reuse the copied array, by updating the values.
+	for queue, position := range uniqMap {
+		queues[position] = queue
+	}
+
+	// Slice only what we need.
+	return queues[:len]
 }
 
 func heartbeat(mgr *Manager) {
@@ -193,7 +270,7 @@ func process(mgr *Manager, idx int) {
 		var err error
 
 		err = mgr.with(func(c *faktory.Client) error {
-			job, err = c.Fetch(mgr.Queues...)
+			job, err = c.Fetch(mgr.getQueues()...)
 			if err != nil {
 				return err
 			}
