@@ -36,10 +36,10 @@ func (mgr *Manager) Register(name string, fn Perform) {
 // starting and stopping goroutines to perform work at the desired concurrency level
 type Manager struct {
 	Concurrency int
-	Queues      []string
 	Pool
 	Logger Logger
 
+	queues     []string
 	middleware []MiddlewareFunc
 	quiet      bool
 	// The done channel will always block unless
@@ -49,7 +49,6 @@ type Manager struct {
 	jobHandlers    map[string]Handler
 	eventHandlers  map[eventType][]func()
 
-	sync.RWMutex
 	// This only needs to be computed once. Store it here to keep things fast.
 	weightedPriorityQueuesEnabled bool
 	weightedQueues                []string
@@ -90,9 +89,9 @@ func (mgr *Manager) Use(middleware ...MiddlewareFunc) {
 func NewManager() *Manager {
 	return &Manager{
 		Concurrency: 20,
-		Queues:      []string{"default"},
 		Logger:      NewStdLogger(),
 
+		queues:         []string{"default"},
 		done:           make(chan interface{}),
 		shutdownWaiter: &sync.WaitGroup{},
 		jobHandlers:    map[string]Handler{},
@@ -138,33 +137,27 @@ func (mgr *Manager) Run() {
 	}
 }
 
-// StrictPriorityQueues enables strictly ordered priority queues.
-func (mgr *Manager) StrictPriorityQueues(queues ...string) {
-	mgr.Lock()
-	defer mgr.Unlock()
-	mgr.Queues = queues
+// One of the Process*Queues methods should be called once before Run()
+func (mgr *Manager) ProcessStrictPriorityQueues(queues ...string) {
+	mgr.queues = queues
 	mgr.weightedPriorityQueuesEnabled = false
 }
 
-// WeightedPriorityQueues enables weighted priority queues.
-func (mgr *Manager) WeightedPriorityQueues(queues map[string]int) {
+func (mgr *Manager) ProcessWeightedPriorityQueues(queues map[string]int) {
 	uniqueQueues := queueKeys(queues)
 	weightedQueues := expandWeightedQueues(queues)
-	mgr.Lock()
-	defer mgr.Unlock()
-	mgr.Queues = uniqueQueues
+
+	mgr.queues = uniqueQueues
 	mgr.weightedQueues = weightedQueues
 	mgr.weightedPriorityQueuesEnabled = true
 }
 
-func (mgr *Manager) getQueues() []string {
-	mgr.RLock()
-	defer mgr.RUnlock()
+func (mgr *Manager) queueList() []string {
 	if mgr.weightedPriorityQueuesEnabled {
 		sq := shuffleQueues(mgr.weightedQueues)
-		return uniqQueues(len(mgr.Queues), sq)
+		return uniqQueues(len(mgr.queues), sq)
 	}
-	return mgr.Queues
+	return mgr.queues
 }
 
 func heartbeat(mgr *Manager) {
@@ -230,7 +223,7 @@ func process(mgr *Manager, idx int) {
 		var err error
 
 		err = mgr.with(func(c *faktory.Client) error {
-			job, err = c.Fetch(mgr.getQueues()...)
+			job, err = c.Fetch(mgr.queueList()...)
 			if err != nil {
 				return err
 			}

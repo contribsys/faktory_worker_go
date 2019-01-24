@@ -28,35 +28,35 @@ func TestContext(t *testing.T) {
 }
 
 func TestWeightedQueues(t *testing.T) {
-	t.Parallel()
 	rand.Seed(42)
+
 	mgr := NewManager()
-	mgr.WeightedPriorityQueues(map[string]int{"critical": 3, "default": 2, "bulk": 1})
-	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.getQueues())
-	assert.Equal(t, []string{"bulk", "default", "critical"}, mgr.getQueues())
+	mgr.ProcessWeightedPriorityQueues(map[string]int{"critical": 3, "default": 2, "bulk": 1})
+	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.queueList())
+	assert.Equal(t, []string{"bulk", "default", "critical"}, mgr.queueList())
 
-	mgr.WeightedPriorityQueues(map[string]int{"critical": 1, "default": 100, "bulk": 1000})
-	assert.Equal(t, []string{"bulk", "default", "critical"}, mgr.getQueues())
+	mgr.ProcessWeightedPriorityQueues(map[string]int{"critical": 1, "default": 100, "bulk": 1000})
+	assert.Equal(t, []string{"bulk", "default", "critical"}, mgr.queueList())
 
-	mgr.WeightedPriorityQueues(map[string]int{"critical": 1, "default": 1000, "bulk": 100})
-	assert.Equal(t, []string{"default", "bulk", "critical"}, mgr.getQueues())
+	mgr.ProcessWeightedPriorityQueues(map[string]int{"critical": 1, "default": 1000, "bulk": 100})
+	assert.Equal(t, []string{"default", "bulk", "critical"}, mgr.queueList())
 
-	mgr.WeightedPriorityQueues(map[string]int{"critical": 1, "default": 1, "bulk": 1})
-	assert.Equal(t, []string{"critical", "bulk", "default"}, mgr.getQueues())
+	mgr.ProcessWeightedPriorityQueues(map[string]int{"critical": 1, "default": 1, "bulk": 1})
+	assert.Equal(t, []string{"critical", "bulk", "default"}, mgr.queueList())
 }
 
 func TestStrictQueues(t *testing.T) {
 	t.Parallel()
 	mgr := NewManager()
-	mgr.StrictPriorityQueues("critical", "default", "bulk")
-	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.getQueues())
-	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.getQueues())
-	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.getQueues())
-	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.getQueues())
+	mgr.ProcessStrictPriorityQueues("critical", "default", "bulk")
+	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.queueList())
+	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.queueList())
+	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.queueList())
+	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.queueList())
 
-	mgr.StrictPriorityQueues("default", "critical", "bulk")
-	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.getQueues())
-	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.getQueues())
-	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.getQueues())
-	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.getQueues())
+	mgr.ProcessStrictPriorityQueues("default", "critical", "bulk")
+	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.queueList())
+	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.queueList())
+	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.queueList())
+	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.queueList())
 }

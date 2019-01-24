@@ -7,8 +7,7 @@ import (
 )
 
 const (
-	// Version is the current version
-	Version = "0.6.1"
+	Version = "0.7.0"
 )
 
 // Context provides Go's standard Context pattern

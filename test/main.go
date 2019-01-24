@@ -37,7 +37,7 @@ func main() {
 	mgr.Concurrency = 20
 
 	// pull jobs from these queues, in this order of precedence
-	mgr.Queues = []string{"critical", "default", "bulk"}
+	mgr.ProcessStrictPriorityQueues("critical", "default", "bulk")
 
 	var quit bool
 	mgr.On(worker.Shutdown, func() {

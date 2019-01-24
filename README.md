@@ -50,7 +50,10 @@ func main() {
   mgr.Concurrency = 20
 
   // pull jobs from these queues, in this order of precedence
-  mgr.Queues = []string{"critical", "default", "bulk"}
+  mgr.ProcessStrictPriorityQueues("critical", "default", "bulk")
+
+  // alternatively you can use weights to avoid starvation
+  //mgr.ProcessWeightedPriorityQueues(map[string]int{"critical":3, "default":2, "bulk":1})
 
   // Start processing jobs, this method does not return
   mgr.Run()
