@@ -138,7 +138,7 @@ func (mgr *Manager) Run() {
 	}
 }
 
-// StrictPriorityQueues enables weighted priority queues.
+// StrictPriorityQueues enables strictly ordered priority queues.
 func (mgr *Manager) StrictPriorityQueues(queues ...string) {
 	mgr.Lock()
 	defer mgr.Unlock()
