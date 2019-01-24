@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -48,9 +49,10 @@ type Manager struct {
 	jobHandlers    map[string]Handler
 	eventHandlers  map[eventType][]func()
 
+	sync.RWMutex
 	// This only needs to be computed once. Store it here to keep things fast.
-	weightedQueuesEnabled bool
-	weightedQueues        []string
+	weightedPriorityQueuesEnabled bool
+	weightedQueues                []string
 }
 
 // Register a callback to be fired when a process lifecycle event occurs.
@@ -99,8 +101,8 @@ func NewManager() *Manager {
 			Quiet:    []func(){},
 			Shutdown: []func(){},
 		},
-		weightedQueuesEnabled: false,
-		weightedQueues:        []string{},
+		weightedPriorityQueuesEnabled: false,
+		weightedQueues:                []string{},
 	}
 }
 
@@ -136,74 +138,33 @@ func (mgr *Manager) Run() {
 	}
 }
 
-// UseWeightedQueues sets weights for the queues.
-func (mgr *Manager) UseWeightedQueues(weights []int) {
-	mgr.weightedQueuesEnabled = true
-	mgr.weightedQueues = expandWeightedQueues(mgr.Queues, weights)
+// StrictPriorityQueues enables weighted priority queues.
+func (mgr *Manager) StrictPriorityQueues(queues ...string) {
+	mgr.Lock()
+	defer mgr.Unlock()
+	mgr.Queues = queues
+	mgr.weightedPriorityQueuesEnabled = false
 }
 
-func expandWeightedQueues(queues []string, weights []int) []string {
-	weightsTotal := 0
-	for _, queueWeight := range weights {
-		weightsTotal += queueWeight
-	}
-
-	weightedQueues := make([]string, weightsTotal, weightsTotal)
-	fillIndex := 0
-
-	for weightIndex, queue := range queues {
-		nTimes := weights[weightIndex]
-		// Fill weightedQueues with queue n times
-		for idx := 0; idx < nTimes; idx++ {
-			weightedQueues[fillIndex] = queue
-			fillIndex++
-		}
-	}
-
-	return weightedQueues
+// WeightedPriorityQueues enables weighted priority queues.
+func (mgr *Manager) WeightedPriorityQueues(queues map[string]int) {
+	uniqueQueues := queueKeys(queues)
+	weightedQueues := expandWeightedQueues(queues)
+	mgr.Lock()
+	defer mgr.Unlock()
+	mgr.Queues = uniqueQueues
+	mgr.weightedQueues = weightedQueues
+	mgr.weightedPriorityQueuesEnabled = true
 }
 
 func (mgr *Manager) getQueues() []string {
-	if !mgr.weightedQueuesEnabled {
-		return mgr.Queues
+	mgr.RLock()
+	defer mgr.RUnlock()
+	if mgr.weightedPriorityQueuesEnabled {
+		sq := shuffleQueues(mgr.weightedQueues)
+		return uniqQueues(len(mgr.Queues), sq)
 	}
-
-	sq := shuffleQueues(mgr.weightedQueues)
-	return uniqQueues(len(mgr.Queues), sq)
-}
-
-// shuffleQueues returns a copy of the slice with the elements shuffled.
-func shuffleQueues(queues []string) []string {
-	wq := make([]string, len(queues))
-	copy(wq, queues)
-
-	rand.Shuffle(len(wq), func(i, j int) {
-		wq[i], wq[j] = wq[j], wq[i]
-	})
-
-	return wq
-}
-
-// uniqQueues returns a slice of length len, of the unique elements while maintaining order.
-// The underlying array is modified to avoid allocating another one.
-func uniqQueues(len int, queues []string) []string {
-	// Record the unique values and position.
-	pos := 0
-	uniqMap := make(map[string]int)
-	for _, v := range queues {
-		if _, ok := uniqMap[v]; !ok {
-			uniqMap[v] = pos
-			pos++
-		}
-	}
-
-	// Reuse the copied array, by updating the values.
-	for queue, position := range uniqMap {
-		queues[position] = queue
-	}
-
-	// Slice only what we need.
-	return queues[:len]
+	return mgr.Queues
 }
 
 func heartbeat(mgr *Manager) {
@@ -367,4 +328,73 @@ func (mgr *Manager) with(fn func(fky *faktory.Client) error) error {
 	}
 	conn.Close()
 	return err
+}
+
+// expandWeightedQueues builds a slice of queues represented the number of times equal to their weights.
+func expandWeightedQueues(queueWeights map[string]int) []string {
+	weightsTotal := 0
+	for _, queueWeight := range queueWeights {
+		weightsTotal += queueWeight
+	}
+
+	weightedQueues := make([]string, weightsTotal)
+	fillIndex := 0
+
+	for queue, nTimes := range queueWeights {
+		// Fill weightedQueues with queue n times
+		for idx := 0; idx < nTimes; idx++ {
+			weightedQueues[fillIndex] = queue
+			fillIndex++
+		}
+	}
+
+	// weightedQueues has to be stable so we can write tests
+	sort.Strings(weightedQueues)
+	return weightedQueues
+}
+
+func queueKeys(queues map[string]int) []string {
+	keys := make([]string, len(queues))
+	i := 0
+	for k := range queues {
+		keys[i] = k
+		i++
+	}
+	// queues has to be stable so we can write tests
+	sort.Strings(keys)
+	return keys
+}
+
+// shuffleQueues returns a copy of the slice with the elements shuffled.
+func shuffleQueues(queues []string) []string {
+	wq := make([]string, len(queues))
+	copy(wq, queues)
+
+	rand.Shuffle(len(wq), func(i, j int) {
+		wq[i], wq[j] = wq[j], wq[i]
+	})
+
+	return wq
+}
+
+// uniqQueues returns a slice of length len, of the unique elements while maintaining order.
+// The underlying array is modified to avoid allocating another one.
+func uniqQueues(len int, queues []string) []string {
+	// Record the unique values and position.
+	pos := 0
+	uniqMap := make(map[string]int)
+	for _, v := range queues {
+		if _, ok := uniqMap[v]; !ok {
+			uniqMap[v] = pos
+			pos++
+		}
+	}
+
+	// Reuse the copied array, by updating the values.
+	for queue, position := range uniqMap {
+		queues[position] = queue
+	}
+
+	// Slice only what we need.
+	return queues[:len]
 }

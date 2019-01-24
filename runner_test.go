@@ -31,17 +31,32 @@ func TestWeightedQueues(t *testing.T) {
 	t.Parallel()
 	rand.Seed(42)
 	mgr := NewManager()
-	mgr.Queues = []string{"critical", "default", "bulk"}
-	mgr.UseWeightedQueues([]int{3, 2, 1})
+	mgr.WeightedPriorityQueues(map[string]int{"critical": 3, "default": 2, "bulk": 1})
 	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.getQueues())
-	assert.Equal(t, []string{"critical", "bulk", "default"}, mgr.getQueues())
-
-	mgr.UseWeightedQueues([]int{1, 100, 1000})
 	assert.Equal(t, []string{"bulk", "default", "critical"}, mgr.getQueues())
 
-	mgr.UseWeightedQueues([]int{1, 1000, 100})
+	mgr.WeightedPriorityQueues(map[string]int{"critical": 1, "default": 100, "bulk": 1000})
+	assert.Equal(t, []string{"bulk", "default", "critical"}, mgr.getQueues())
+
+	mgr.WeightedPriorityQueues(map[string]int{"critical": 1, "default": 1000, "bulk": 100})
 	assert.Equal(t, []string{"default", "bulk", "critical"}, mgr.getQueues())
 
-	mgr.UseWeightedQueues([]int{1, 1, 1})
+	mgr.WeightedPriorityQueues(map[string]int{"critical": 1, "default": 1, "bulk": 1})
+	assert.Equal(t, []string{"critical", "bulk", "default"}, mgr.getQueues())
+}
+
+func TestStrictQueues(t *testing.T) {
+	t.Parallel()
+	mgr := NewManager()
+	mgr.StrictPriorityQueues("critical", "default", "bulk")
+	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.getQueues())
+	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.getQueues())
+	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.getQueues())
+	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.getQueues())
+
+	mgr.StrictPriorityQueues("default", "critical", "bulk")
+	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.getQueues())
+	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.getQueues())
+	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.getQueues())
 	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.getQueues())
 }
