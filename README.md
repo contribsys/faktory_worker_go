@@ -31,6 +31,8 @@ To stop the process, send the TERM or INT signal.
 
 ```go
 import (
+  "fmt"
+
   worker "github.com/contribsys/faktory_worker_go"
 )
 
