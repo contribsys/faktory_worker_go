@@ -1,7 +1,7 @@
 test:
-	go test ./...
+	go test -race ./...
 
 work:
-	go run test/main.go
+	go run -race test/main.go
 
 .PHONY: work test
