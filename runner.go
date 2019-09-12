@@ -142,7 +142,9 @@ func (mgr *Manager) Run() {
 	faktory.RandomProcessWid = strconv.FormatInt(rand.Int63(), 32)
 
 	if mgr.Pool == nil {
-		pool, err := NewChannelPool(0, mgr.Dispatchers*2, func() (Closeable, error) { return faktory.Open() })
+		// Configure max connection pool size to number of fetchers + number of result-reporters + 1 for
+		// the heartbeat process
+		pool, err := NewChannelPool(0, mgr.Dispatchers*2+1, func() (Closeable, error) { return faktory.Open() })
 		if err != nil {
 			panic(err)
 		}
