@@ -162,6 +162,7 @@ func (c *channelPool) Get() (Closeable, error) {
 
 		return c.wrapConn(conn), nil
 	default:
+		fmt.Println("CONNECT!!!!")
 		conn, err := c.factory()
 		if err != nil {
 			return nil, err
@@ -192,6 +193,7 @@ func (c *channelPool) put(conn Closeable) error {
 	case c.conns <- conn:
 		return nil
 	default:
+		fmt.Println("Pool full!")
 		// pool is full, close passed connection
 		return conn.Close()
 	}

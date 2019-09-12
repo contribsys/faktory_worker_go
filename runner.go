@@ -166,6 +166,7 @@ func (mgr *Manager) Run() {
 	defer mgr.shutdownWaiter.Done()
 
 	<-mgr.done
+	fmt.Println("Draining...")
 	close(in)
 	// TODO: Drain result queue / wait for workers to finish...
 }
@@ -248,7 +249,7 @@ func reportResults(mgr *Manager, out chan *jobResult) {
 	mgr.shutdownWaiter.Add(1)
 	defer mgr.shutdownWaiter.Done()
 	for result := range out {
-		mgr.with(func(c *faktory.Client) (err error) {
+		err := mgr.with(func(c *faktory.Client) (err error) {
 			if result.err != nil {
 				err = c.Fail(result.jid, result.err, result.backtrace)
 			} else {
@@ -256,6 +257,9 @@ func reportResults(mgr *Manager, out chan *jobResult) {
 			}
 			return
 		})
+		if err != nil {
+			mgr.Logger.Error(err)
+		}
 	}
 }
 
