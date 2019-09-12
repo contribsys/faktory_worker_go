@@ -34,7 +34,8 @@ func main() {
 	//mgr.Register("AnotherJob", anotherFunc)
 
 	// use up to N goroutines to execute jobs
-	mgr.Concurrency = 20
+	mgr.PoolSize = 5
+	mgr.Concurrency = 100
 
 	// pull jobs from these queues, in this order of precedence
 	mgr.ProcessStrictPriorityQueues("critical", "default", "bulk")
@@ -44,11 +45,16 @@ func main() {
 		quit = true
 	})
 	go func() {
+		client, err := faktory.Open()
+		if err != nil {
+			panic(err)
+		}
+
 		for {
 			if quit {
 				return
 			}
-			produce()
+			produce(client)
 			time.Sleep(1 * time.Second)
 		}
 	}()
@@ -58,17 +64,12 @@ func main() {
 }
 
 // Push something for us to work on.
-func produce() {
-	cl, err := faktory.Open()
-	if err != nil {
-		panic(err)
-	}
-
+func produce(client *faktory.Client) {
 	job := faktory.NewJob("SomeJob", 1, 2, "hello")
 	job.Custom = map[string]interface{}{
 		"hello": "world",
 	}
-	err = cl.Push(job)
+	err := client.Push(job)
 	if err != nil {
 		panic(err)
 	}

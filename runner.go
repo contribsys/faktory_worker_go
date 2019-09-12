@@ -22,19 +22,35 @@ const (
 	Shutdown eventType = 3
 )
 
+// jobResult represents the results of an attempt to execute a job
+type jobResult struct {
+	jid       string
+	err       error
+	backtrace []byte
+}
+
 // Register registers a handler for the given jobtype.  It is expected that all jobtypes
 // are registered upon process startup.
 //
 // faktory_worker.Register("ImportantJob", ImportantFunc)
 func (mgr *Manager) Register(name string, fn Perform) {
+	mgr.mu.Lock()
 	mgr.jobHandlers[name] = func(ctx Context, job *faktory.Job) error {
 		return fn(ctx, job.Args...)
 	}
+	mgr.mu.Unlock()
+}
+
+func (mgr *Manager) HandlerFor(name string) Handler {
+	mgr.mu.Lock()
+	defer mgr.mu.Unlock()
+	return mgr.jobHandlers[name]
 }
 
 // Manager coordinates the processes for the worker.  It is responsible for
 // starting and stopping goroutines to perform work at the desired concurrency level
 type Manager struct {
+	PoolSize    int
 	Concurrency int
 	Pool
 	Logger Logger
@@ -52,6 +68,8 @@ type Manager struct {
 	// This only needs to be computed once. Store it here to keep things fast.
 	weightedPriorityQueuesEnabled bool
 	weightedQueues                []string
+
+	mu sync.Mutex
 }
 
 // Register a callback to be fired when a process lifecycle event occurs.
@@ -88,6 +106,7 @@ func (mgr *Manager) Use(middleware ...MiddlewareFunc) {
 // NewManager returns a new manager with default values.
 func NewManager() *Manager {
 	return &Manager{
+		PoolSize:    20,
 		Concurrency: 20,
 		Logger:      NewStdLogger(),
 
@@ -114,19 +133,28 @@ func (mgr *Manager) Run() {
 	faktory.RandomProcessWid = strconv.FormatInt(rand.Int63(), 32)
 
 	if mgr.Pool == nil {
-		pool, err := NewChannelPool(0, mgr.Concurrency, func() (Closeable, error) { return faktory.Open() })
+		pool, err := NewChannelPool(0, mgr.PoolSize, func() (Closeable, error) { return faktory.Open() })
 		if err != nil {
 			panic(err)
 		}
 		mgr.Pool = pool
 	}
 
+	in := make(chan *faktory.Job)
+	out := make(chan *jobResult, mgr.Concurrency)
+	mgr.On(Shutdown, func() {
+		fmt.Println("Got shutdown")
+		close(in)
+	})
+
 	mgr.fireEvent(Startup)
 
 	go heartbeat(mgr)
+	go reportResults(mgr, out)
+	go fetchJobs(mgr, in)
 
 	for i := 0; i < mgr.Concurrency; i++ {
-		go process(mgr, i)
+		go process(mgr, in, out, i)
 	}
 
 	sigchan := hookSignals()
@@ -158,6 +186,59 @@ func (mgr *Manager) queueList() []string {
 		return uniqQueues(len(mgr.queues), sq)
 	}
 	return mgr.queues
+}
+
+func fetchJobs(mgr *Manager, in chan *faktory.Job) {
+	mgr.shutdownWaiter.Add(1)
+
+	for {
+		select {
+		case <-mgr.done:
+			mgr.shutdownWaiter.Done()
+			return
+		default:
+			if mgr.quiet {
+				mgr.shutdownWaiter.Done()
+				return
+			}
+
+			var job *faktory.Job
+			var err error
+			err = mgr.with(func(c *faktory.Client) (err error) {
+				job, err = c.Fetch(mgr.queueList()...)
+				return
+			})
+
+			if err != nil {
+				mgr.Logger.Error(err)
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			in <- job
+		}
+	}
+}
+
+func reportResults(mgr *Manager, out chan *jobResult) {
+	mgr.shutdownWaiter.Add(1)
+	for {
+		select {
+		case result := <-out:
+			fmt.Println("Received job result!")
+			mgr.with(func(c *faktory.Client) (err error) {
+				if result.err != nil {
+					err = c.Fail(result.jid, result.err, result.backtrace)
+				} else {
+					err = c.Ack(result.jid)
+				}
+				return
+			})
+		case <-mgr.done:
+			mgr.shutdownWaiter.Done()
+			return
+		}
+	}
 }
 
 func heartbeat(mgr *Manager) {
@@ -207,67 +288,40 @@ func handleEvent(sig eventType, mgr *Manager) {
 	}
 }
 
-func process(mgr *Manager, idx int) {
+func process(mgr *Manager, in chan *faktory.Job, out chan *jobResult, idx int) {
 	mgr.shutdownWaiter.Add(1)
 	// delay initial fetch randomly to prevent thundering herd.
 	time.Sleep(time.Duration(rand.Int31()))
 	defer mgr.shutdownWaiter.Done()
 
 	for {
-		if mgr.quiet {
-			return
-		}
-
-		// check for shutdown
 		select {
 		case <-mgr.done:
+			// check for shutdown
 			return
-		default:
-		}
-
-		// fetch job
-		var job *faktory.Job
-		var err error
-
-		err = mgr.with(func(c *faktory.Client) error {
-			job, err = c.Fetch(mgr.queueList()...)
-			if err != nil {
-				return err
+		case job := <-in:
+			if job == nil {
+				continue
 			}
-			return nil
-		})
 
-		if err != nil {
-			mgr.Logger.Error(err)
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		// execute
-		if job != nil {
-			perform := mgr.jobHandlers[job.Type]
+			// fetch and dispatch job
+			perform := mgr.HandlerFor(job.Type)
 			if perform == nil {
-				mgr.with(func(c *faktory.Client) error {
-					return c.Fail(job.Jid, fmt.Errorf("No handler for %s", job.Type), nil)
-				})
-			} else {
-				h := perform
-				for i := len(mgr.middleware) - 1; i >= 0; i-- {
-					h = mgr.middleware[i](h)
-				}
-
-				err := h(ctxFor(job), job)
-				mgr.with(func(c *faktory.Client) error {
-					if err != nil {
-						return c.Fail(job.Jid, err, nil)
-					} else {
-						return c.Ack(job.Jid)
-					}
-				})
+				out <- &jobResult{job.Jid, fmt.Errorf("No handler for %s", job.Type), nil}
+				continue
 			}
-		} else {
-			// if there are no jobs, Faktory will block us on
-			// the first queue, so no need to poll or sleep
+
+			h := perform
+			for i := len(mgr.middleware) - 1; i >= 0; i-- {
+				h = mgr.middleware[i](h)
+			}
+
+			err := h(ctxFor(job), job)
+			out <- &jobResult{job.Jid, err, nil}
+		default:
+			if mgr.quiet {
+				return
+			}
 		}
 	}
 }
