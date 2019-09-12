@@ -51,6 +51,10 @@ func main() {
   // use up to N goroutines to execute jobs
   mgr.Concurrency = 20
 
+  // use N goroutines to fetch jobs plus N goroutines to report job results, with a pool
+  // size of up to N*2 connections
+  mgr.Dispatchers = 4
+
   // pull jobs from these queues, in this order of precedence
   mgr.ProcessStrictPriorityQueues("critical", "default", "bulk")
 

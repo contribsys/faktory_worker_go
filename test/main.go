@@ -33,9 +33,11 @@ func main() {
 	mgr.Register("SomeWorker", someFunc)
 	//mgr.Register("AnotherJob", anotherFunc)
 
+	// use up to N goroutines to fetch jobs, and N goroutines to report results
+	// to the server
+	mgr.Dispatchers = 5
 	// use up to N goroutines to execute jobs
-	mgr.PoolSize = 5
-	mgr.Concurrency = 100
+	mgr.Concurrency = 1000
 
 	// pull jobs from these queues, in this order of precedence
 	mgr.ProcessStrictPriorityQueues("critical", "default", "bulk")

@@ -50,7 +50,7 @@ func (mgr *Manager) HandlerFor(name string) Handler {
 // Manager coordinates the processes for the worker.  It is responsible for
 // starting and stopping goroutines to perform work at the desired concurrency level
 type Manager struct {
-	PoolSize    int
+	Dispatchers int
 	Concurrency int
 	Pool
 	Logger Logger
@@ -60,10 +60,12 @@ type Manager struct {
 	quiet      bool
 	// The done channel will always block unless
 	// the system is shutting down.
-	done           chan interface{}
-	shutdownWaiter *sync.WaitGroup
-	jobHandlers    map[string]Handler
-	eventHandlers  map[eventType][]func()
+	done              chan interface{}
+	shutdownWaiter    *sync.WaitGroup
+	preDone           chan interface{}
+	preShutdownWaiter *sync.WaitGroup
+	jobHandlers       map[string]Handler
+	eventHandlers     map[eventType][]func()
 
 	// This only needs to be computed once. Store it here to keep things fast.
 	weightedPriorityQueuesEnabled bool
@@ -90,6 +92,11 @@ func (mgr *Manager) Quiet() {
 // Blocks on the shutdownWaiter until all components have finished.
 func (mgr *Manager) Terminate() {
 	mgr.Logger.Info("Shutting down...")
+	// Stop accepting jobs, and begin draining out work-in-progress
+	close(mgr.preDone)
+	mgr.preShutdownWaiter.Wait()
+
+	// Begin shutdown in earnest
 	close(mgr.done)
 	mgr.fireEvent(Shutdown)
 	mgr.shutdownWaiter.Wait()
@@ -106,14 +113,16 @@ func (mgr *Manager) Use(middleware ...MiddlewareFunc) {
 // NewManager returns a new manager with default values.
 func NewManager() *Manager {
 	return &Manager{
-		PoolSize:    20,
+		Dispatchers: 10,
 		Concurrency: 20,
 		Logger:      NewStdLogger(),
 
-		queues:         []string{"default"},
-		done:           make(chan interface{}),
-		shutdownWaiter: &sync.WaitGroup{},
-		jobHandlers:    map[string]Handler{},
+		queues:            []string{"default"},
+		done:              make(chan interface{}),
+		shutdownWaiter:    &sync.WaitGroup{},
+		preDone:           make(chan interface{}),
+		preShutdownWaiter: &sync.WaitGroup{},
+		jobHandlers:       map[string]Handler{},
 		eventHandlers: map[eventType][]func(){
 			Startup:  []func(){},
 			Quiet:    []func(){},
@@ -133,36 +142,40 @@ func (mgr *Manager) Run() {
 	faktory.RandomProcessWid = strconv.FormatInt(rand.Int63(), 32)
 
 	if mgr.Pool == nil {
-		pool, err := NewChannelPool(0, mgr.PoolSize, func() (Closeable, error) { return faktory.Open() })
+		pool, err := NewChannelPool(0, mgr.Dispatchers*2, func() (Closeable, error) { return faktory.Open() })
 		if err != nil {
 			panic(err)
 		}
 		mgr.Pool = pool
 	}
 
+	// a channel to distribute jobs to worker goroutines.  unbuffered to provide backpressure.
 	in := make(chan *faktory.Job)
+	// a channel to gather job results from worker goroutines so they can be returned to the server.
 	out := make(chan *jobResult, mgr.Concurrency)
-	mgr.On(Shutdown, func() {
-		fmt.Println("Got shutdown")
-		close(in)
-	})
 
 	mgr.fireEvent(Startup)
 
 	go heartbeat(mgr)
-	go reportResults(mgr, out)
-	go fetchJobs(mgr, in)
+
+	// start a set of goroutines to report results to the server, and to fetch jobs
+	for i := 0; i < mgr.Dispatchers; i++ {
+		go reportResults(mgr, out)
+		go fetchJobs(mgr, in)
+	}
 
 	for i := 0; i < mgr.Concurrency; i++ {
 		go process(mgr, in, out, i)
 	}
 
-	sigchan := hookSignals()
+	go handleSignals(mgr)
 
-	for {
-		sig := <-sigchan
-		handleEvent(signalMap[sig], mgr)
-	}
+	mgr.shutdownWaiter.Add(1)
+	defer mgr.shutdownWaiter.Done()
+
+	<-mgr.done
+	close(in)
+	// TODO: Drain result queue / wait for workers to finish...
 }
 
 // One of the Process*Queues methods should be called once before Run()
@@ -188,56 +201,69 @@ func (mgr *Manager) queueList() []string {
 	return mgr.queues
 }
 
+func handleSignals(mgr *Manager) {
+	sigchan := hookSignals()
+
+	for {
+		sig := <-sigchan
+		handleEvent(signalMap[sig], mgr)
+	}
+}
+
 func fetchJobs(mgr *Manager, in chan *faktory.Job) {
-	mgr.shutdownWaiter.Add(1)
+	mgr.preShutdownWaiter.Add(1)
+	defer func() {
+		mgr.preShutdownWaiter.Done()
+	}()
+
+	// delay initial fetch randomly to prevent thundering herd.
+	time.Sleep(time.Duration(rand.Int31()))
 
 	for {
 		select {
-		case <-mgr.done:
-			mgr.shutdownWaiter.Done()
+		case <-mgr.preDone:
 			return
 		default:
-			if mgr.quiet {
-				mgr.shutdownWaiter.Done()
-				return
-			}
-
-			var job *faktory.Job
-			var err error
-			err = mgr.with(func(c *faktory.Client) (err error) {
-				job, err = c.Fetch(mgr.queueList()...)
-				return
-			})
-
-			if err != nil {
-				mgr.Logger.Error(err)
-				time.Sleep(1 * time.Second)
-				continue
-			}
-
-			in <- job
 		}
+
+		if mgr.quiet {
+			return
+		}
+
+		var job *faktory.Job
+		var err error
+		err = mgr.with(func(c *faktory.Client) (err error) {
+			job, err = c.Fetch(mgr.queueList()...)
+			return
+		})
+
+		if err != nil {
+			mgr.Logger.Error(err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		// job can be nil if nothing was received from the server!
+		if job == nil {
+			continue
+		}
+
+		in <- job
 	}
 }
 
 func reportResults(mgr *Manager, out chan *jobResult) {
 	mgr.shutdownWaiter.Add(1)
-	for {
-		select {
-		case result := <-out:
-			fmt.Println("Received job result!")
-			mgr.with(func(c *faktory.Client) (err error) {
-				if result.err != nil {
-					err = c.Fail(result.jid, result.err, result.backtrace)
-				} else {
-					err = c.Ack(result.jid)
-				}
-				return
-			})
-		case <-mgr.done:
-			mgr.shutdownWaiter.Done()
+	defer mgr.shutdownWaiter.Done()
+	for result := range out {
+		mgr.with(func(c *faktory.Client) (err error) {
+			if result.err != nil {
+				err = c.Fail(result.jid, result.err, result.backtrace)
+			} else {
+				err = c.Ack(result.jid)
+			}
 			return
-		}
+		})
 	}
 }
 
@@ -290,39 +316,22 @@ func handleEvent(sig eventType, mgr *Manager) {
 
 func process(mgr *Manager, in chan *faktory.Job, out chan *jobResult, idx int) {
 	mgr.shutdownWaiter.Add(1)
-	// delay initial fetch randomly to prevent thundering herd.
-	time.Sleep(time.Duration(rand.Int31()))
 	defer mgr.shutdownWaiter.Done()
 
-	for {
-		select {
-		case <-mgr.done:
-			// check for shutdown
-			return
-		case job := <-in:
-			if job == nil {
-				continue
-			}
-
-			// fetch and dispatch job
-			perform := mgr.HandlerFor(job.Type)
-			if perform == nil {
-				out <- &jobResult{job.Jid, fmt.Errorf("No handler for %s", job.Type), nil}
-				continue
-			}
-
-			h := perform
-			for i := len(mgr.middleware) - 1; i >= 0; i-- {
-				h = mgr.middleware[i](h)
-			}
-
-			err := h(ctxFor(job), job)
-			out <- &jobResult{job.Jid, err, nil}
-		default:
-			if mgr.quiet {
-				return
-			}
+	for job := range in {
+		perform := mgr.HandlerFor(job.Type)
+		if perform == nil {
+			out <- &jobResult{job.Jid, fmt.Errorf("No handler for %s", job.Type), nil}
+			continue
 		}
+
+		h := perform
+		for i := len(mgr.middleware) - 1; i >= 0; i-- {
+			h = mgr.middleware[i](h)
+		}
+
+		err := h(ctxFor(job), job)
+		out <- &jobResult{job.Jid, err, nil}
 	}
 }
 
