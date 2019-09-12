@@ -34,17 +34,9 @@ type jobResult struct {
 //
 // faktory_worker.Register("ImportantJob", ImportantFunc)
 func (mgr *Manager) Register(name string, fn Perform) {
-	mgr.mu.Lock()
 	mgr.jobHandlers[name] = func(ctx Context, job *faktory.Job) error {
 		return fn(ctx, job.Args...)
 	}
-	mgr.mu.Unlock()
-}
-
-func (mgr *Manager) HandlerFor(name string) Handler {
-	mgr.mu.Lock()
-	defer mgr.mu.Unlock()
-	return mgr.jobHandlers[name]
 }
 
 // Manager coordinates the processes for the worker.  It is responsible for
@@ -70,8 +62,6 @@ type Manager struct {
 	// This only needs to be computed once. Store it here to keep things fast.
 	weightedPriorityQueuesEnabled bool
 	weightedQueues                []string
-
-	mu sync.Mutex
 }
 
 // Register a callback to be fired when a process lifecycle event occurs.
@@ -321,7 +311,7 @@ func process(mgr *Manager, in chan *faktory.Job, out chan *jobResult, idx int) {
 	defer mgr.shutdownWaiter.Done()
 
 	for job := range in {
-		perform := mgr.HandlerFor(job.Type)
+		perform := mgr.jobHandlers[job.Type]
 		if perform == nil {
 			out <- &jobResult{job.Jid, fmt.Errorf("No handler for %s", job.Type), nil}
 			continue
