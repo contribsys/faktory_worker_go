@@ -154,7 +154,7 @@ func (mgr *Manager) Run() {
 	// a channel to distribute jobs to worker goroutines.  unbuffered to provide backpressure.
 	in := make(chan *faktory.Job)
 	// a channel to gather job results from worker goroutines so they can be returned to the server.
-	out := make(chan *jobResult, mgr.Concurrency)
+	out := make(chan *jobResult)
 
 	mgr.fireEvent(Startup)
 
