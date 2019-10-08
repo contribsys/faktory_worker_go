@@ -218,6 +218,13 @@ func process(mgr *Manager, idx int) {
 			return
 		}
 
+		// check for shutdown
+		select {
+		case <-mgr.done:
+			return
+		default:
+		}
+
 		// fetch job
 		var job *faktory.Job
 		var err error
@@ -262,14 +269,6 @@ func process(mgr *Manager, idx int) {
 			// if there are no jobs, Faktory will block us on
 			// the first queue, so no need to poll or sleep
 		}
-
-		// check for shutdown
-		select {
-		case <-mgr.done:
-			return
-		default:
-		}
-
 	}
 }
 
