@@ -285,8 +285,6 @@ type DefaultContext struct {
 	JID  string
 	BID  string
 	Type string
-
-	batch *faktory.Batch
 }
 
 // Jid returns the job ID for the default context
