@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	faktory "github.com/contribsys/faktory/client"
@@ -14,6 +15,13 @@ func someFunc(ctx worker.Context, args ...interface{}) error {
 	log.Printf("Context %v\n", ctx)
 	log.Printf("Args %v\n", args)
 	time.Sleep(1 * time.Second)
+	return nil
+}
+
+func batchFunc(ctx worker.Context, args ...interface{}) error {
+	log.Printf("Working on job %s\n", ctx.Jid())
+	log.Printf("Context %v\n", ctx)
+	log.Printf("Args %v\n", args)
 	return nil
 }
 
@@ -31,6 +39,8 @@ func main() {
 	// register job types and the function to execute them
 	mgr.Register("SomeJob", someFunc)
 	mgr.Register("SomeWorker", someFunc)
+	mgr.Register("BatchJob", batchFunc)
+	mgr.Register("BatchSuccess", batchFunc)
 	//mgr.Register("AnotherJob", anotherFunc)
 
 	// use up to N goroutines to execute jobs
@@ -48,6 +58,7 @@ func main() {
 			if quit {
 				return
 			}
+			batch()
 			produce()
 			time.Sleep(1 * time.Second)
 		}
@@ -55,6 +66,32 @@ func main() {
 
 	// Start processing jobs, this method does not return
 	mgr.Run()
+}
+
+func batch() {
+	cl, err := faktory.Open()
+	if err != nil {
+		panic(err)
+	}
+
+	hash, err := cl.Info()
+	if err != nil {
+		panic(err)
+	}
+	desc := hash["server"].(map[string]interface{})["description"].(string)
+	if !strings.Contains(desc, "Enterprise") {
+		return
+	}
+
+	b := faktory.NewBatch(cl)
+	b.Success = faktory.NewJob("BatchSuccess", "much success")
+	err = b.Jobs(func() error {
+		b.Push(faktory.NewJob("BatchJob", "1"))
+		return b.Push(faktory.NewJob("BatchJob", "2"))
+	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Push something for us to work on.
