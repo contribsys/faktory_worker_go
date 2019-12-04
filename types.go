@@ -20,6 +20,7 @@ type Context interface {
 	context.Context
 
 	Jid() string
+	Bid() string
 	JobType() string
 }
 

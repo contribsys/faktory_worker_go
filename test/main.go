@@ -20,6 +20,9 @@ func someFunc(ctx worker.Context, args ...interface{}) error {
 
 func batchFunc(ctx worker.Context, args ...interface{}) error {
 	log.Printf("Working on job %s\n", ctx.Jid())
+	if ctx.Bid() != "" {
+		log.Printf("within %s...\n", ctx.Bid())
+	}
 	log.Printf("Context %v\n", ctx)
 	log.Printf("Args %v\n", args)
 	return nil
@@ -39,8 +42,8 @@ func main() {
 	// register job types and the function to execute them
 	mgr.Register("SomeJob", someFunc)
 	mgr.Register("SomeWorker", someFunc)
-	mgr.Register("BatchJob", batchFunc)
-	mgr.Register("BatchSuccess", batchFunc)
+	mgr.Register("ImportImageJob", batchFunc)
+	mgr.Register("ImportImageSuccess", batchFunc)
 	//mgr.Register("AnotherJob", anotherFunc)
 
 	// use up to N goroutines to execute jobs
@@ -83,15 +86,27 @@ func batch() {
 		return
 	}
 
+	// Batch example
+	// We want to import all images associated with user 1234.
+	// Once we've imported those two images, we want to fire
+	// a success callback so we can notify user 1234.
 	b := faktory.NewBatch(cl)
-	b.Success = faktory.NewJob("BatchSuccess", "much success")
+	b.Description = "Import images for user 1234"
+	b.Success = faktory.NewJob("ImportImageSuccess", "user 1234")
+	// Once we call Jobs(), the batch is off and running
 	err = b.Jobs(func() error {
-		b.Push(faktory.NewJob("BatchJob", "1"))
-		return b.Push(faktory.NewJob("BatchJob", "2"))
+		b.Push(faktory.NewJob("ImportImageJob", "1"))
+		return b.Push(faktory.NewJob("ImportImageJob", "2"))
 	})
 	if err != nil {
 		panic(err)
 	}
+
+	st, err := cl.BatchStatus(b.Bid)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%+v", st)
 }
 
 // Push something for us to work on.

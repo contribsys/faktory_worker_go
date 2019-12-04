@@ -283,12 +283,19 @@ type DefaultContext struct {
 	context.Context
 
 	JID  string
+	BID  string
 	Type string
+
+	batch *faktory.Batch
 }
 
 // Jid returns the job ID for the default context
 func (c *DefaultContext) Jid() string {
 	return c.JID
+}
+
+func (c *DefaultContext) Bid() string {
+	return c.BID
 }
 
 // JobType returns the job type for the default context
@@ -297,11 +304,16 @@ func (c *DefaultContext) JobType() string {
 }
 
 func ctxFor(job *faktory.Job) Context {
-	return &DefaultContext{
+	c := &DefaultContext{
 		Context: context.Background(),
 		JID:     job.Jid,
 		Type:    job.Type,
 	}
+	s, _ := job.GetCustom("bid")
+	if s != nil {
+		c.BID = s.(string)
+	}
+	return c
 }
 
 func (mgr *Manager) with(fn func(fky *faktory.Client) error) error {
