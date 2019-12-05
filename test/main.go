@@ -92,11 +92,22 @@ func batch() {
 	// a success callback so we can notify user 1234.
 	b := faktory.NewBatch(cl)
 	b.Description = "Import images for user 1234"
-	b.Success = faktory.NewJob("ImportImageSuccess", "user 1234")
+	b.Success = faktory.NewJob("ImportImageSuccess", "parent", "1234")
 	// Once we call Jobs(), the batch is off and running
 	err = b.Jobs(func() error {
 		b.Push(faktory.NewJob("ImportImageJob", "1"))
-		return b.Push(faktory.NewJob("ImportImageJob", "2"))
+
+		child := faktory.NewBatch(cl)
+		child.ParentBid = b.Bid
+		child.Description = "Child of " + b.Bid
+		child.Success = faktory.NewJob("ImportImageSuccess", "child", "1234")
+		err = child.Jobs(func() error {
+			return child.Push(faktory.NewJob("ImportImageJob", "2"))
+		})
+		if err != nil {
+			return err
+		}
+		return b.Push(faktory.NewJob("ImportImageJob", "3"))
 	})
 	if err != nil {
 		panic(err)
