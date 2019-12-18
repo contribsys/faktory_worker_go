@@ -97,6 +97,9 @@ func batch() {
 	err = b.Jobs(func() error {
 		b.Push(faktory.NewJob("ImportImageJob", "1"))
 
+		// a child batch represents a set of jobs which can be monitored
+		// separately from the parent batch's jobs. parent success won't
+		// fire until child success runs without error.
 		child := faktory.NewBatch(cl)
 		child.ParentBid = b.Bid
 		child.Description = "Child of " + b.Bid
