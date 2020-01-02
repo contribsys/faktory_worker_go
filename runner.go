@@ -37,7 +37,9 @@ func (mgr *Manager) Register(name string, fn Perform) {
 type Manager struct {
 	Concurrency int
 	Pool
-	Logger Logger
+	Logger     Logger
+	ProcessWID string
+	Labels     []string
 
 	queues     []string
 	middleware []MiddlewareFunc
@@ -90,6 +92,7 @@ func NewManager() *Manager {
 	return &Manager{
 		Concurrency: 20,
 		Logger:      NewStdLogger(),
+		Labels:      []string{"golang"},
 
 		queues:         []string{"default"},
 		done:           make(chan interface{}),
@@ -110,8 +113,15 @@ func NewManager() *Manager {
 func (mgr *Manager) Run() {
 	// This will signal to Faktory that all connections from this process
 	// are worker connections.
-	rand.Seed(time.Now().UnixNano())
-	faktory.RandomProcessWid = strconv.FormatInt(rand.Int63(), 32)
+	if len(mgr.ProcessWID) == 0 {
+		rand.Seed(time.Now().UnixNano())
+		faktory.RandomProcessWid = strconv.FormatInt(rand.Int63(), 32)
+	} else {
+		faktory.RandomProcessWid = mgr.ProcessWID
+	}
+
+	// Set labels to be displayed in the UI
+	faktory.Labels = mgr.Labels
 
 	if mgr.Pool == nil {
 		pool, err := NewChannelPool(0, mgr.Concurrency, func() (Closeable, error) { return faktory.Open() })
