@@ -86,15 +86,34 @@ job := faktory.NewJob("SomeJob", 1, 2, 3)
 err = client.Push(job)
 ```
 
-See the Faktory client for
-[Go](https://github.com/contribsys/faktory/blob/master/client/client.go) or
+Client instances are not safe to share, you can use a Pool of Clients
+which is thread-safe.  Use `With` to get a Client instance for use:
+
+```go
+import (
+  faktory "github.com/contribsys/faktory/client"
+)
+
+// create pool
+pool, err := faktory.NewPool(20)
+
+// use pool
+err = pool.With(func(c *faktory.Client) error {
+  return c.Push(...job data...)
+})
+```
+
+Pools are lazy, 20 is the max number of shared connections it will create.
+
+See the Faktory Client API for
+[Go](https://github.com/contribsys/faktory/blob/master/client) or
 [Ruby](https://github.com/contribsys/faktory-ruby/blob/master/lib/faktory/client.rb).
 You can implement a Faktory client in any programming langauge.
 See [the wiki](https://github.com/contribsys/faktory/wiki) for details.
 
 # Author
 
-Mike Perham, @mperham
+Mike Perham, @getajobmike, @contribsys
 
 # License
 
