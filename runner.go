@@ -187,7 +187,8 @@ func heartbeat(mgr *Manager) {
 			// we don't care about errors, assume any network
 			// errors will heal eventually
 			err := mgr.with(func(c *faktory.Client) error {
-				data, err := c.Beat(mgr.CurrentState())
+				//data, err := c.Beat(mgr.CurrentState())
+				data, err := c.Beat()
 				if err != nil || data == "" {
 					return err
 				}
