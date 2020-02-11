@@ -9,17 +9,16 @@ import (
 )
 
 var (
-	// SIGTERM is an alias for syscall.SIGTERM
 	SIGTERM os.Signal = syscall.SIGTERM
-	// SIGTSTP is an alias for syscall.SIGSTP
 	SIGTSTP os.Signal = syscall.SIGTSTP
-	// SIGINT is and alias for syscall.SIGINT
-	SIGINT os.Signal = os.Interrupt
+	SIGTTIN os.Signal = syscall.SIGTTIN
+	SIGINT  os.Signal = os.Interrupt
 
-	signalMap = map[os.Signal]eventType{
-		SIGTERM: Shutdown,
-		SIGINT:  Shutdown,
-		SIGTSTP: Quiet,
+	signalMap = map[os.Signal]string{
+		SIGTERM: "terminate",
+		SIGINT:  "terminate",
+		SIGTSTP: "quiet",
+		SIGTTIN: "dump",
 	}
 )
 
@@ -28,5 +27,6 @@ func hookSignals() chan os.Signal {
 	signal.Notify(sigchan, SIGINT)
 	signal.Notify(sigchan, SIGTERM)
 	signal.Notify(sigchan, SIGTSTP)
+	signal.Notify(sigchan, SIGTTIN)
 	return sigchan
 }

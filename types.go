@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	Version = "1.0.0"
+	Version = "1.0.1"
 )
 
 // Context provides Go's standard Context pattern

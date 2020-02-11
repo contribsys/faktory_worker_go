@@ -12,8 +12,8 @@ import (
 
 func someFunc(ctx worker.Context, args ...interface{}) error {
 	log.Printf("Working on job %s\n", ctx.Jid())
-	log.Printf("Context %v\n", ctx)
-	log.Printf("Args %v\n", args)
+	//log.Printf("Context %v\n", ctx)
+	//log.Printf("Args %v\n", args)
 	time.Sleep(1 * time.Second)
 	return nil
 }
@@ -23,12 +23,15 @@ func batchFunc(ctx worker.Context, args ...interface{}) error {
 	if ctx.Bid() != "" {
 		log.Printf("within %s...\n", ctx.Bid())
 	}
-	log.Printf("Context %v\n", ctx)
-	log.Printf("Args %v\n", args)
+	//log.Printf("Context %v\n", ctx)
+	//log.Printf("Args %v\n", args)
 	return nil
 }
 
 func main() {
+	flags := log.Ldate | log.Ltime | log.Lmicroseconds | log.LUTC
+	log.SetFlags(flags)
+
 	mgr := worker.NewManager()
 	mgr.Use(func(perform worker.Handler) worker.Handler {
 		return func(ctx worker.Context, job *faktory.Job) error {
@@ -138,5 +141,5 @@ func produce() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(cl.Info())
+	//fmt.Println(cl.Info())
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"runtime"
 	"sort"
 	"strconv"
 	"sync"
@@ -43,7 +44,7 @@ type Manager struct {
 
 	queues     []string
 	middleware []MiddlewareFunc
-	quiet      bool
+	state      string // "", "quiet" or "terminate"
 	// The done channel will always block unless
 	// the system is shutting down.
 	done           chan interface{}
@@ -66,7 +67,7 @@ func (mgr *Manager) On(event eventType, fn func()) {
 // from Faktory by this process.
 func (mgr *Manager) Quiet() {
 	mgr.Logger.Info("Quieting...")
-	mgr.quiet = true
+	mgr.state = "quiet"
 	mgr.fireEvent(Quiet)
 }
 
@@ -74,6 +75,7 @@ func (mgr *Manager) Quiet() {
 // Blocks on the shutdownWaiter until all components have finished.
 func (mgr *Manager) Terminate() {
 	mgr.Logger.Info("Shutting down...")
+	mgr.state = "terminate"
 	close(mgr.done)
 	mgr.fireEvent(Shutdown)
 	mgr.shutdownWaiter.Wait()
@@ -94,6 +96,7 @@ func NewManager() *Manager {
 		Logger:      NewStdLogger(),
 		Labels:      []string{"golang"},
 
+		state:          "",
 		queues:         []string{"default"},
 		done:           make(chan interface{}),
 		shutdownWaiter: &sync.WaitGroup{},
@@ -135,6 +138,7 @@ func (mgr *Manager) Run() {
 
 	go heartbeat(mgr)
 
+	mgr.Logger.Infof("faktory_worker_go PID %d now ready to process jobs", os.Getpid())
 	for i := 0; i < mgr.Concurrency; i++ {
 		go process(mgr, i)
 	}
@@ -170,16 +174,20 @@ func (mgr *Manager) queueList() []string {
 	return mgr.queues
 }
 
+func (mgr *Manager) CurrentState() string {
+	return mgr.state
+}
+
 func heartbeat(mgr *Manager) {
 	mgr.shutdownWaiter.Add(1)
-	timer := time.NewTicker(5 * time.Second)
+	timer := time.NewTicker(10 * time.Second)
 	for {
 		select {
 		case <-timer.C:
 			// we don't care about errors, assume any network
 			// errors will heal eventually
-			_ = mgr.with(func(c *faktory.Client) error {
-				data, err := c.Beat()
+			err := mgr.with(func(c *faktory.Client) error {
+				data, err := c.Beat(mgr.CurrentState())
 				if err != nil || data == "" {
 					return err
 				}
@@ -189,13 +197,14 @@ func heartbeat(mgr *Manager) {
 					return err
 				}
 
-				if hash["state"] == "terminate" {
-					handleEvent(Shutdown, mgr)
-				} else if hash["state"] == "quiet" {
-					handleEvent(Quiet, mgr)
+				if state, ok := hash["state"]; ok && state != "" {
+					handleEvent(state, mgr)
 				}
 				return nil
 			})
+			if err != nil {
+				mgr.Logger.Error(fmt.Sprintf("heartbeat error: %v", err))
+			}
 		case <-mgr.done:
 			timer.Stop()
 			mgr.shutdownWaiter.Done()
@@ -204,27 +213,38 @@ func heartbeat(mgr *Manager) {
 	}
 }
 
-func handleEvent(sig eventType, mgr *Manager) {
+func handleEvent(sig string, mgr *Manager) {
+	if sig == mgr.CurrentState() {
+		return
+	}
+	if sig == "quiet" && mgr.CurrentState() == "terminate" {
+		// this is a no-op, a terminating process is quiet already
+		return
+	}
+
 	switch sig {
-	case Shutdown:
+	case "terminate":
 		go func() {
 			mgr.Terminate()
 		}()
-	case Quiet:
+	case "quiet":
 		go func() {
 			mgr.Quiet()
 		}()
+	case "dump":
+		dumpThreads(mgr.Logger)
 	}
 }
 
 func process(mgr *Manager, idx int) {
 	mgr.shutdownWaiter.Add(1)
 	// delay initial fetch randomly to prevent thundering herd.
+	// this will pause between 0 and 2B nanoseconds, i.e. 0-2 seconds
 	time.Sleep(time.Duration(rand.Int31()))
 	defer mgr.shutdownWaiter.Done()
 
 	for {
-		if mgr.quiet {
+		if mgr.CurrentState() != "" {
 			return
 		}
 
@@ -409,4 +429,11 @@ func uniqQueues(len int, queues []string) []string {
 
 	// Slice only what we need.
 	return queues[:len]
+}
+
+func dumpThreads(logg Logger) {
+	buf := make([]byte, 64*1024)
+	_ = runtime.Stack(buf, true)
+	logg.Info("FULL PROCESS THREAD DUMP:")
+	logg.Info(string(buf))
 }

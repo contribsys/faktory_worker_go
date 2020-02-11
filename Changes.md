@@ -1,5 +1,12 @@
 # faktory\_worker\_go
 
+## 1.0.1
+
+- FWG will now dump all thread backtraces upon `kill -TTIN <pid>`,
+  useful for debugging stuck job processing.
+- Send current state back to Faktory so process state changes are visible on Busy page.
+- Tweak log output formatting
+
 ## 1.0.0
 
 - Allow process labels (visible in Web UI) to be set [#32]

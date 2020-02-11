@@ -23,7 +23,8 @@ type StdLogger struct {
 }
 
 func NewStdLogger() Logger {
-	return &StdLogger{log.New(os.Stdout, "Faktory ", log.LstdFlags)}
+	flags := log.Ldate | log.Ltime | log.Lmicroseconds | log.LUTC
+	return &StdLogger{log.New(os.Stdout, "", flags)}
 }
 
 func (l *StdLogger) Debug(v ...interface{}) {
@@ -31,7 +32,7 @@ func (l *StdLogger) Debug(v ...interface{}) {
 }
 
 func (l *StdLogger) Debugf(format string, v ...interface{}) {
-	l.Printf(format + "\n", v...)
+	l.Printf(format+"\n", v...)
 }
 
 func (l *StdLogger) Error(v ...interface{}) {
@@ -39,7 +40,7 @@ func (l *StdLogger) Error(v ...interface{}) {
 }
 
 func (l *StdLogger) Errorf(format string, v ...interface{}) {
-	l.Printf(format + "\n", v...)
+	l.Printf(format+"\n", v...)
 }
 
 func (l *StdLogger) Info(v ...interface{}) {
@@ -47,7 +48,7 @@ func (l *StdLogger) Info(v ...interface{}) {
 }
 
 func (l *StdLogger) Infof(format string, v ...interface{}) {
-	l.Printf(format + "\n", v...)
+	l.Printf(format+"\n", v...)
 }
 
 func (l *StdLogger) Warn(v ...interface{}) {
@@ -55,5 +56,5 @@ func (l *StdLogger) Warn(v ...interface{}) {
 }
 
 func (l *StdLogger) Warnf(format string, v ...interface{}) {
-	l.Printf(format + "\n", v...)
+	l.Printf(format+"\n", v...)
 }
