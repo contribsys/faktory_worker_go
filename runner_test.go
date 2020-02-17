@@ -20,11 +20,27 @@ func TestRegistration(t *testing.T) {
 
 func TestContext(t *testing.T) {
 	t.Parallel()
+	mgr := NewManager()
+	pool, err := faktory.NewPool(10)
+	assert.NoError(t, err)
+	mgr.Pool = pool
 	job := faktory.NewJob("something", 1, 2)
-	ctx := ctxFor(job)
+	job.SetCustom("track", 1)
+
+	cl, err := faktory.Open()
+	assert.NoError(t, err)
+	cl.Push(job)
+
+	ctx := ctxFor(mgr, job)
 	assert.Equal(t, ctx.Jid(), job.Jid)
 	_, ok := ctx.Deadline()
 	assert.False(t, ok)
+
+	assert.NoError(t, ctx.JobProgress(45, "Working...."))
+
+	assert.Error(t, ctx.Batch(func(b *faktory.Batch) error {
+		return nil
+	}))
 }
 
 func TestWeightedQueues(t *testing.T) {

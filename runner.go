@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"runtime"
@@ -37,10 +38,10 @@ func (mgr *Manager) Register(name string, fn Perform) {
 // starting and stopping goroutines to perform work at the desired concurrency level
 type Manager struct {
 	Concurrency int
-	Pool
-	Logger     Logger
-	ProcessWID string
-	Labels     []string
+	Logger      Logger
+	ProcessWID  string
+	Labels      []string
+	Pool        *faktory.Pool
 
 	queues     []string
 	middleware []MiddlewareFunc
@@ -95,6 +96,7 @@ func NewManager() *Manager {
 		Concurrency: 20,
 		Logger:      NewStdLogger(),
 		Labels:      []string{"golang"},
+		Pool:        nil,
 
 		state:          "",
 		queues:         []string{"default"},
@@ -127,9 +129,9 @@ func (mgr *Manager) Run() {
 	faktory.Labels = mgr.Labels
 
 	if mgr.Pool == nil {
-		pool, err := NewChannelPool(0, mgr.Concurrency, func() (Closeable, error) { return faktory.Open() })
+		pool, err := faktory.NewPool(mgr.Concurrency)
 		if err != nil {
-			panic(err)
+			log.Panicf("Couldn't create Faktory connection pool: %v", err)
 		}
 		mgr.Pool = pool
 	}
@@ -149,6 +151,13 @@ func (mgr *Manager) Run() {
 		sig := <-sigchan
 		handleEvent(signalMap[sig], mgr)
 	}
+}
+
+func (mgr *Manager) with(fn func(cl *faktory.Client) error) error {
+	if mgr.Pool == nil {
+		panic("No Pool set on Manager, have you called manager.Run() yet?")
+	}
+	return mgr.Pool.With(fn)
 }
 
 // One of the Process*Queues methods should be called once before Run()
@@ -287,7 +296,7 @@ func process(mgr *Manager, idx int) {
 					h = mgr.middleware[i](h)
 				}
 
-				err := h(ctxFor(job), job)
+				err := h(ctxFor(mgr, job), job)
 				mgr.with(func(c *faktory.Client) error {
 					if err != nil {
 						return c.Fail(job.Jid, err, nil)
@@ -316,6 +325,7 @@ type DefaultContext struct {
 	JID  string
 	BID  string
 	Type string
+	mgr  *Manager
 }
 
 // Jid returns the job ID for the default context
@@ -332,35 +342,49 @@ func (c *DefaultContext) JobType() string {
 	return c.Type
 }
 
-func ctxFor(job *faktory.Job) Context {
+// requires Faktory Enterprise
+func (c *DefaultContext) JobProgress(percent int, desc string) error {
+	return c.mgr.with(func(cl *faktory.Client) error {
+		return cl.TrackSet(c.JID, percent, desc, nil)
+	})
+}
+
+// requires Faktory Enterprise
+// Open the current batch so we can add more jobs to it.
+func (c *DefaultContext) Batch(fn func(*faktory.Batch) error) error {
+	if c.BID == "" {
+		return fmt.Errorf("No batch associated with this job")
+	}
+
+	var b *faktory.Batch
+	var err error
+
+	err = c.mgr.with(func(cl *faktory.Client) error {
+		b, err = cl.BatchOpen(c.BID)
+		if err != nil {
+			return err
+		}
+		return fn(b)
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ctxFor(m *Manager, job *faktory.Job) Context {
 	c := &DefaultContext{
 		Context: context.Background(),
 		JID:     job.Jid,
 		Type:    job.Type,
+		mgr:     m,
 	}
 	s, _ := job.GetCustom("bid")
 	if s != nil {
 		c.BID = s.(string)
 	}
 	return c
-}
-
-func (mgr *Manager) with(fn func(fky *faktory.Client) error) error {
-	conn, err := mgr.Pool.Get()
-	if err != nil {
-		return err
-	}
-	pc := conn.(*PoolConn)
-	f, ok := pc.Closeable.(*faktory.Client)
-	if !ok {
-		return fmt.Errorf("Connection is not a Faktory client instance: %+v", conn)
-	}
-	err = fn(f)
-	if err != nil {
-		pc.MarkUnusable()
-	}
-	conn.Close()
-	return err
 }
 
 // expandWeightedQueues builds a slice of queues represented the number of times equal to their weights.

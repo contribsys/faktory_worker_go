@@ -1,5 +1,10 @@
 # faktory\_worker\_go
 
+## HEAD
+
+- Add new job context APIs for Faktory Enterprise features
+- Remove `faktory_worker_go` Pool type in favor of the Pool now in `faktory/client`
+
 ## 1.0.1
 
 - FWG will now dump all thread backtraces upon `kill -TTIN <pid>`,

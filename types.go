@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	Version = "1.0.1"
+	Version = "1.1.0"
 )
 
 // Context provides Go's standard Context pattern
@@ -20,8 +20,18 @@ type Context interface {
 	context.Context
 
 	Jid() string
-	Bid() string
 	JobType() string
+
+	// Faktory Enterprise:
+	// this method integrates with Faktory Enterprise's Job Tracking feature
+	JobProgress(percent int, desc string) error
+
+	// Faktory Enterprise:
+	// these helpers give access to any Batch associated with this job.
+	Bid() string
+
+	// open the batch associated with this job so we can add more jobs to it.
+	Batch(func(*faktory.Batch) error) error
 }
 
 // Perform actually executes the job.
