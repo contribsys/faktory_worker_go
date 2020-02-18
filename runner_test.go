@@ -27,16 +27,16 @@ func TestContext(t *testing.T) {
 	job := faktory.NewJob("something", 1, 2)
 	job.SetCustom("track", 1)
 
-	cl, err := faktory.Open()
-	assert.NoError(t, err)
-	cl.Push(job)
+	//cl, err := faktory.Open()
+	//assert.NoError(t, err)
+	//cl.Push(job)
 
 	ctx := ctxFor(mgr, job)
 	assert.Equal(t, ctx.Jid(), job.Jid)
 	_, ok := ctx.Deadline()
 	assert.False(t, ok)
 
-	assert.NoError(t, ctx.JobProgress(45, "Working...."))
+	//assert.NoError(t, ctx.TrackProgress(45, "Working....", nil))
 
 	assert.Error(t, ctx.Batch(func(b *faktory.Batch) error {
 		return nil

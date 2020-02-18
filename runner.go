@@ -344,9 +344,9 @@ func (c *DefaultContext) JobType() string {
 }
 
 // requires Faktory Enterprise
-func (c *DefaultContext) JobProgress(percent int, desc string) error {
+func (c *DefaultContext) TrackProgress(percent int, desc string, reserveUntil *time.Time) error {
 	return c.mgr.with(func(cl *faktory.Client) error {
-		return cl.TrackSet(c.JID, percent, desc, nil)
+		return cl.TrackSet(c.JID, percent, desc, reserveUntil)
 	})
 }
 
