@@ -2,6 +2,7 @@ package faktory_worker
 
 import (
 	"context"
+	"time"
 
 	faktory "github.com/contribsys/faktory/client"
 )
@@ -23,15 +24,24 @@ type Context interface {
 	JobType() string
 
 	// Faktory Enterprise:
-	// this method integrates with Faktory Enterprise's Job Tracking feature
-	JobProgress(percent int, desc string) error
+	// this method integrates with Faktory Enterprise's Job Tracking feature.
+	// `reserveUntil` is optional, only needed for long jobs which have more dynamic
+	// lifetimes.
+	//
+	//     ctx.TrackProgress(10, "Updating code...", nil)
+	//     ctx.TrackProgress(20, "Cleaning caches...", &time.Now().Add(1 * time.Hour)))
+	//
+	TrackProgress(percent int, desc string, reserveUntil *time.Time) error
 
 	// Faktory Enterprise:
-	// these helpers give access to any Batch associated with this job.
+	// the BID of the Batch associated with this job
 	Bid() string
 
 	// open the batch associated with this job so we can add more jobs to it.
 	Batch(func(*faktory.Batch) error) error
+
+	// allows direct access to the Faktory server from the job
+	With(func(*faktory.Client) error) error
 }
 
 // Perform actually executes the job.

@@ -325,7 +325,8 @@ type DefaultContext struct {
 	JID  string
 	BID  string
 	Type string
-	mgr  *Manager
+
+	mgr *Manager
 }
 
 // Jid returns the job ID for the default context
@@ -347,6 +348,11 @@ func (c *DefaultContext) JobProgress(percent int, desc string) error {
 	return c.mgr.with(func(cl *faktory.Client) error {
 		return cl.TrackSet(c.JID, percent, desc, nil)
 	})
+}
+
+// Provides a Faktory server connection to the given func
+func (c *DefaultContext) With(fn func(*faktory.Client) error) error {
+	return c.mgr.with(fn)
 }
 
 // requires Faktory Enterprise
