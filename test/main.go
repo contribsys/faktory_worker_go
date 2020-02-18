@@ -56,8 +56,9 @@ func main() {
 	mgr.ProcessStrictPriorityQueues("critical", "default", "bulk")
 
 	var quit bool
-	mgr.On(worker.Shutdown, func() {
+	mgr.On(worker.Shutdown, func(*worker.Manager) error {
 		quit = true
+		return nil
 	})
 	go func() {
 		for {
