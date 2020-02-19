@@ -3,7 +3,8 @@
 ## HEAD
 
 - Add new job context APIs for Faktory Enterprise features
-- Remove `faktory_worker_go` Pool type in favor of the Pool now in `faktory/client`
+- Misc API refactoring to improve test coverage
+- Remove `faktory_worker_go` Pool interface in favor of the Pool now in `faktory/client`
 
 ## 1.0.1
 

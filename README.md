@@ -76,6 +76,18 @@ indirection is useful for SaaSes, Heroku Addons, etc.
 
 * How do I push new jobs to Faktory?
 
+1. Inside a job, you can check out a connection from the Pool of Faktory
+   connections via the `With` method:
+```go
+func someFunc(ctx worker.Context, args ...interface{}) error {
+  return ctx.With(func(cl *faktory.Client) error {
+    job := faktory.NewJob("SomeJob", 1, 2, 3)
+    return cl.Push(job)
+  })
+}
+```
+2. You can always open a client connection to Faktory directly but this
+   won't perform as well:
 ```go
 import (
   faktory "github.com/contribsys/faktory/client"
@@ -86,24 +98,8 @@ job := faktory.NewJob("SomeJob", 1, 2, 3)
 err = client.Push(job)
 ```
 
-Client instances are not safe to share, you can use a Pool of Clients
-which is thread-safe.  Use `With` to get a Client instance for use:
-
-```go
-import (
-  faktory "github.com/contribsys/faktory/client"
-)
-
-// create pool
-pool, err := faktory.NewPool(20)
-
-// use pool
-err = pool.With(func(c *faktory.Client) error {
-  return c.Push(...job data...)
-})
-```
-
-Pools are lazy, 20 is the max number of shared connections it will create.
+**NB:** Client instances are **not safe to share**, you can use a Pool of Clients
+which is thread-safe.
 
 See the Faktory Client API for
 [Go](https://github.com/contribsys/faktory/blob/master/client) or

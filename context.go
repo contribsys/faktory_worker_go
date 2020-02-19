@@ -41,7 +41,7 @@ type Context interface {
 	With(func(*faktory.Client) error) error
 }
 
-// DefaultContext embeds Go's standard context and associates it with a job ID.
+// defaultContext embeds Go's standard context and associates it with a job ID.
 type defaultContext struct {
 	context.Context
 
