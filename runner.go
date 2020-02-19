@@ -98,50 +98,69 @@ func process(mgr *Manager, idx int) {
 		default:
 		}
 
-		// fetch job
-		var job *faktory.Job
-		var err error
-
-		err = mgr.with(func(c *faktory.Client) error {
-			job, err = c.Fetch(mgr.queueList()...)
-			if err != nil {
-				return err
-			}
-			return nil
-		})
-
+		err := processOne(mgr)
 		if err != nil {
 			mgr.Logger.Error(err)
 			time.Sleep(1 * time.Second)
-			continue
 		}
+	}
+}
 
-		// execute
-		if job != nil {
-			perform := mgr.jobHandlers[job.Type]
-			if perform == nil {
-				mgr.with(func(c *faktory.Client) error {
-					return c.Fail(job.Jid, fmt.Errorf("No handler for %s", job.Type), nil)
-				})
+func processOne(mgr *Manager) error {
+	// fetch job
+	var job *faktory.Job
+	var e error
+
+	err := mgr.with(func(c *faktory.Client) error {
+		job, e = c.Fetch(mgr.queueList()...)
+		if e != nil {
+			return e
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if job == nil {
+		return nil
+	}
+
+	perform := mgr.jobHandlers[job.Type]
+
+	if perform == nil {
+		err = mgr.with(func(c *faktory.Client) error {
+			return c.Fail(job.Jid, fmt.Errorf("No handler for %s", job.Type), nil)
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	h := perform
+	for i := len(mgr.middleware) - 1; i >= 0; i-- {
+		h = mgr.middleware[i](h)
+	}
+
+	joberr := h(ctxFor(mgr, job), job)
+	if joberr != nil {
+		// job errors are normal and expected, we don't return early from them
+		mgr.Logger.Error("Error running %s job %s: %v", job.Type, job.Jid, joberr)
+	}
+
+	for {
+		// we want to report the result back to Faktory.
+		// we stay in this loop until we successfully report.
+		err = mgr.with(func(c *faktory.Client) error {
+			if err != nil {
+				return c.Fail(job.Jid, joberr, nil)
 			} else {
-				h := perform
-				for i := len(mgr.middleware) - 1; i >= 0; i-- {
-					h = mgr.middleware[i](h)
-				}
-
-				err := h(ctxFor(mgr, job), job)
-				mgr.with(func(c *faktory.Client) error {
-					if err != nil {
-						return c.Fail(job.Jid, err, nil)
-					} else {
-						return c.Ack(job.Jid)
-					}
-				})
+				return c.Ack(job.Jid)
 			}
-		} else {
-			// if there are no jobs, Faktory will block us on
-			// the first queue, so no need to poll or sleep
+		})
+		if err == nil {
+			return nil
 		}
+		time.Sleep(1 * time.Second)
 	}
 }
 
