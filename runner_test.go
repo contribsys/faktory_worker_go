@@ -1,7 +1,10 @@
 package faktory_worker
 
 import (
+	"fmt"
+	"log"
 	"math/rand"
+	"os"
 	"testing"
 
 	faktory "github.com/contribsys/faktory/client"
@@ -75,4 +78,51 @@ func TestStrictQueues(t *testing.T) {
 	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.queueList())
 	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.queueList())
 	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.queueList())
+}
+
+func TestLiveServer(t *testing.T) {
+	mgr := NewManager()
+	mgr.ProcessStrictPriorityQueues("fwgtest")
+	mgr.Concurrency = 1
+	mgr.setUpWorkerProcess()
+
+	mgr.Register("aworker", func(ctx Context, args ...interface{}) error {
+		fmt.Println("doing work", args)
+		return nil
+	})
+
+	withServer(t, mgr, func(cl *faktory.Client) error {
+		cl.Flush()
+
+		j := faktory.NewJob("something", 1, 2)
+		j.Queue = "fwgtest"
+		cl.Push(j)
+
+		err := processOne(mgr)
+		assert.Error(t, err)
+		_, ok := err.(*NoHandlerError)
+		assert.True(t, ok)
+		assert.Equal(t, err, &NoHandlerError{JobType: "something"})
+
+		j = faktory.NewJob("aworker", 1, 2)
+		j.Queue = "fwgtest"
+		cl.Push(j)
+
+		err = processOne(mgr)
+		assert.NoError(t, err)
+		return nil
+	})
+
+}
+
+func TestThreadDump(t *testing.T) {
+	t.Parallel()
+
+	devnull, err := os.OpenFile("/dev/null", os.O_WRONLY, 0)
+	assert.NoError(t, err)
+
+	logg := &StdLogger{
+		log.New(devnull, "", 0),
+	}
+	dumpThreads(logg)
 }

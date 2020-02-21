@@ -1,6 +1,9 @@
 package faktory_worker
 
 import (
+	"errors"
+	"fmt"
+	"syscall"
 	"testing"
 
 	faktory "github.com/contribsys/faktory/client"
@@ -22,14 +25,28 @@ func TestManagerNoServer(t *testing.T) {
 	mgr.fireEvent(Startup)
 	assert.True(t, startupCalled)
 
-	called := false
-	mgr.with(func(cl *faktory.Client) error {
-		called = true
-		assert.NotNil(t, cl)
+	withServer(t, mgr, func(cl *faktory.Client) error {
+		info, err := cl.Info()
+		assert.NoError(t, err)
+		sz := info["faktory"].(map[string]interface{})["tasks"].(map[string]interface{})["Workers"].(map[string]interface{})["size"].(float64)
+		assert.EqualValues(t, 1, sz)
+
 		return nil
 	})
-	assert.True(t, called)
 
 	mgr.Quiet()
 	mgr.Terminate(false)
+}
+
+func withServer(t *testing.T, mgr *Manager, fn func(cl *faktory.Client) error) {
+	err := mgr.with(func(cl *faktory.Client) error {
+		return fn(cl)
+	})
+
+	if errors.Is(err, syscall.ECONNREFUSED) {
+		fmt.Println("Server not running, skipping...")
+		return
+	} else {
+		assert.NoError(t, err)
+	}
 }

@@ -20,6 +20,14 @@ const (
 	Shutdown lifecycleEventType = 3
 )
 
+type NoHandlerError struct {
+	JobType string
+}
+
+func (s *NoHandlerError) Error() string {
+	return fmt.Sprintf("No handler registered for job type %s", s.JobType)
+}
+
 func heartbeat(mgr *Manager) {
 	mgr.shutdownWaiter.Add(1)
 	timer := time.NewTicker(10 * time.Second)
@@ -101,7 +109,9 @@ func process(mgr *Manager, idx int) {
 		err := processOne(mgr)
 		if err != nil {
 			mgr.Logger.Error(err)
-			time.Sleep(1 * time.Second)
+			if _, ok := err.(*NoHandlerError); !ok {
+				time.Sleep(1 * time.Second)
+			}
 		}
 	}
 }
@@ -128,13 +138,14 @@ func processOne(mgr *Manager) error {
 	perform := mgr.jobHandlers[job.Type]
 
 	if perform == nil {
+		je := &NoHandlerError{JobType: job.Type}
 		err = mgr.with(func(c *faktory.Client) error {
-			return c.Fail(job.Jid, fmt.Errorf("No handler for %s", job.Type), nil)
+			return c.Fail(job.Jid, je, nil)
 		})
 		if err != nil {
 			return err
 		}
-		return nil
+		return je
 	}
 
 	h := perform
@@ -161,6 +172,7 @@ func processOne(mgr *Manager) error {
 		if err == nil {
 			return nil
 		}
+		mgr.Logger.Error(err)
 		time.Sleep(1 * time.Second)
 	}
 }
