@@ -3,7 +3,6 @@ package faktory_worker
 import (
 	"context"
 	"fmt"
-	"time"
 
 	faktory "github.com/contribsys/faktory/client"
 )
@@ -28,7 +27,7 @@ type Context interface {
 	//     ctx.TrackProgress(10, "Updating code...", nil)
 	//     ctx.TrackProgress(20, "Cleaning caches...", &time.Now().Add(1 * time.Hour)))
 	//
-	TrackProgress(percent int, desc string, reserveUntil *time.Time) error
+	//TrackProgress(percent int, desc string, reserveUntil *time.Time) error
 
 	// Faktory Enterprise:
 	// the BID of the Batch associated with this job
@@ -67,11 +66,11 @@ func (c *defaultContext) JobType() string {
 }
 
 // requires Faktory Enterprise
-func (c *defaultContext) TrackProgress(percent int, desc string, reserveUntil *time.Time) error {
-	return c.mgr.with(func(cl *faktory.Client) error {
-		return cl.TrackSet(c.JID, percent, desc, reserveUntil)
-	})
-}
+//func (c *defaultContext) TrackProgress(percent int, desc string, reserveUntil *time.Time) error {
+//return c.mgr.with(func(cl *faktory.Client) error {
+//return cl.TrackSet(c.JID, percent, desc, reserveUntil)
+//})
+//}
 
 // Provides a Faktory server connection to the given func
 func (c *defaultContext) With(fn func(*faktory.Client) error) error {

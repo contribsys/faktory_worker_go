@@ -5,6 +5,8 @@ github.com/benbjohnson/ego v0.3.0/go.mod h1:6Qzj43pKX58WdlHDZKZS4Q/XXYwz6toIqXqN
 github.com/benbjohnson/ego v0.4.0/go.mod h1:6Qzj43pKX58WdlHDZKZS4Q/XXYwz6toIqXqNjzt4mNA=
 github.com/contribsys/faktory v1.0.1-1 h1:4kNQojQ2Z9wDX0DmvXj6H/qDOTdXn3xFuub1cpWgQhA=
 github.com/contribsys/faktory v1.0.1-1/go.mod h1:f7QV8TCzZB3O4BToF6WMuhGACIDgneOA4HprJQO75bc=
+github.com/contribsys/faktory v1.2.0-1 h1:lKRKsnuneYrB3JgZDtE6cKUjUI1oTiFDYcl1FMJLkRI=
+github.com/contribsys/faktory v1.2.0-1/go.mod h1:w43gt/7tIXBGnp4BE4LbN8E1vhtjnbI9p+/R91uG2eU=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
