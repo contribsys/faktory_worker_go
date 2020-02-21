@@ -2,12 +2,14 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/apex/log v1.1.0 h1:J5rld6WVFi6NxA6m8GJ1LJqu3+GiTFIt3mYv27gdQWI=
 github.com/apex/log v1.1.0/go.mod h1:yA770aXIDQrhVOIGurT/pVdfCpSq1GQV/auzMN5fzvY=
 github.com/benbjohnson/ego v0.3.0/go.mod h1:6Qzj43pKX58WdlHDZKZS4Q/XXYwz6toIqXqNjzt4mNA=
+github.com/benbjohnson/ego v0.4.0/go.mod h1:6Qzj43pKX58WdlHDZKZS4Q/XXYwz6toIqXqNjzt4mNA=
 github.com/contribsys/faktory v1.0.1-1 h1:4kNQojQ2Z9wDX0DmvXj6H/qDOTdXn3xFuub1cpWgQhA=
 github.com/contribsys/faktory v1.0.1-1/go.mod h1:f7QV8TCzZB3O4BToF6WMuhGACIDgneOA4HprJQO75bc=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/go-bindata/go-bindata v3.1.2+incompatible/go.mod h1:xK8Dsgwmeed+BBsSy2XTopBn/8uK2HWuGSnA11C3Joo=
 github.com/go-redis/redis v0.0.0-20181009075230-daf101bd7905/go.mod h1:NAIEuMOZ/fxfXJIrKDQDz8wamY7mA7PouImQ2Jvg6kA=
 github.com/jteeuwen/go-bindata v3.0.7+incompatible/go.mod h1:JVvhzYOiGBnFSYRyV00iY8q7/0PThjIYav1p9h5dmKs=
 github.com/justinas/nosurf v0.0.0-20171023064657-7182011986c4/go.mod h1:Aucr5I5chr4OCuuVB4LTuHVrKHBuyRSo7vM2hqrcb7E=
