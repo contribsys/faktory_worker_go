@@ -1,7 +1,6 @@
 package faktory_worker
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -87,7 +86,7 @@ func TestLiveServer(t *testing.T) {
 	mgr.setUpWorkerProcess()
 
 	mgr.Register("aworker", func(ctx Context, args ...interface{}) error {
-		fmt.Println("doing work", args)
+		//fmt.Println("doing work", args)
 		return nil
 	})
 

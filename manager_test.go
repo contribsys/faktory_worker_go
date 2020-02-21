@@ -10,8 +10,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestManagerNoServer(t *testing.T) {
-	t.Parallel()
+func TestManagerSetup(t *testing.T) {
+	clx, err := faktory.Open()
+	startsz := 0.0
+	if err == nil {
+		info, err := clx.Info()
+		if err == nil {
+			startsz = info["faktory"].(map[string]interface{})["tasks"].(map[string]interface{})["Workers"].(map[string]interface{})["size"].(float64)
+		}
+	}
 
 	mgr := NewManager()
 	mgr.setUpWorkerProcess()
@@ -29,7 +36,7 @@ func TestManagerNoServer(t *testing.T) {
 		info, err := cl.Info()
 		assert.NoError(t, err)
 		sz := info["faktory"].(map[string]interface{})["tasks"].(map[string]interface{})["Workers"].(map[string]interface{})["size"].(float64)
-		assert.EqualValues(t, 1, sz)
+		assert.EqualValues(t, startsz+1, sz)
 
 		return nil
 	})
