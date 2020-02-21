@@ -134,6 +134,7 @@ func processOne(mgr *Manager) error {
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 
 	h := perform
