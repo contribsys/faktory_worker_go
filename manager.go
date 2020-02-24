@@ -140,7 +140,7 @@ func (mgr *Manager) Run() {
 
 	for {
 		sig := <-sigchan
-		handleEvent(signalMap[sig], mgr)
+		mgr.handleEvent(signalMap[sig])
 	}
 }
 
@@ -181,4 +181,29 @@ func (mgr *Manager) with(fn func(cl *faktory.Client) error) error {
 		panic("No Pool set on Manager, have you called manager.Run() yet?")
 	}
 	return mgr.Pool.With(fn)
+}
+
+func (mgr *Manager) handleEvent(sig string) string {
+	if sig == mgr.state {
+		return mgr.state
+	}
+	if sig == "quiet" && mgr.state == "terminate" {
+		// this is a no-op, a terminating process is quiet already
+		return mgr.state
+	}
+
+	switch sig {
+	case "terminate":
+		go func() {
+			mgr.Terminate(true)
+		}()
+	case "quiet":
+		go func() {
+			mgr.Quiet()
+		}()
+	case "dump":
+		dumpThreads(mgr.Logger)
+	}
+
+	return ""
 }

@@ -20,31 +20,6 @@ func TestRegistration(t *testing.T) {
 	mgr.Register("somejob", sometask)
 }
 
-func TestContext(t *testing.T) {
-	t.Parallel()
-	mgr := NewManager()
-	pool, err := faktory.NewPool(10)
-	assert.NoError(t, err)
-	mgr.Pool = pool
-	job := faktory.NewJob("something", 1, 2)
-	job.SetCustom("track", 1)
-
-	//cl, err := faktory.Open()
-	//assert.NoError(t, err)
-	//cl.Push(job)
-
-	ctx := ctxFor(mgr, job)
-	assert.Equal(t, ctx.Jid(), job.Jid)
-	_, ok := ctx.Deadline()
-	assert.False(t, ok)
-
-	//assert.NoError(t, ctx.TrackProgress(45, "Working....", nil))
-
-	assert.Error(t, ctx.Batch(func(b *faktory.Batch) error {
-		return nil
-	}))
-}
-
 func TestWeightedQueues(t *testing.T) {
 	rand.Seed(42)
 
@@ -90,7 +65,7 @@ func TestLiveServer(t *testing.T) {
 		return nil
 	})
 
-	withServer(t, mgr, func(cl *faktory.Client) error {
+	withServer(t, "oss", mgr, func(cl *faktory.Client) error {
 		cl.Flush()
 
 		j := faktory.NewJob("something", 1, 2)

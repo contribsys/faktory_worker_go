@@ -77,11 +77,15 @@ func (c *defaultContext) With(fn func(*faktory.Client) error) error {
 	return c.mgr.with(fn)
 }
 
+var (
+	NoAssociatedBatchError = fmt.Errorf("No batch associated with this job")
+)
+
 // requires Faktory Enterprise
 // Open the current batch so we can add more jobs to it.
 func (c *defaultContext) Batch(fn func(*faktory.Batch) error) error {
 	if c.BID == "" {
-		return fmt.Errorf("No batch associated with this job")
+		return NoAssociatedBatchError
 	}
 
 	var b *faktory.Batch

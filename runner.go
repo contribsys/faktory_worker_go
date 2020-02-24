@@ -49,7 +49,7 @@ func heartbeat(mgr *Manager) {
 				}
 
 				if state, ok := hash["state"]; ok && state != "" {
-					handleEvent(state, mgr)
+					mgr.handleEvent(state)
 				}
 				return nil
 			})
@@ -61,29 +61,6 @@ func heartbeat(mgr *Manager) {
 			mgr.shutdownWaiter.Done()
 			return
 		}
-	}
-}
-
-func handleEvent(sig string, mgr *Manager) {
-	if sig == mgr.state {
-		return
-	}
-	if sig == "quiet" && mgr.state == "terminate" {
-		// this is a no-op, a terminating process is quiet already
-		return
-	}
-
-	switch sig {
-	case "terminate":
-		go func() {
-			mgr.Terminate(true)
-		}()
-	case "quiet":
-		go func() {
-			mgr.Quiet()
-		}()
-	case "dump":
-		dumpThreads(mgr.Logger)
 	}
 }
 
