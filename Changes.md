@@ -1,6 +1,6 @@
 # faktory\_worker\_go
 
-## HEAD
+## 1.3.0
 
 - Add new job context APIs for Faktory Enterprise features
 - Misc API refactoring to improve test coverage

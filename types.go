@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	Version = "1.1.0"
+	Version = "1.3.0"
 )
 
 // Perform actually executes the job.
