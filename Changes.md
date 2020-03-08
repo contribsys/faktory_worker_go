@@ -1,5 +1,9 @@
 # faktory\_worker\_go
 
+## HEAD
+
+- Fix issue reporting job errors back to Faktory
+
 ## 1.3.0
 
 - Add new job context APIs for Faktory Enterprise features

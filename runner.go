@@ -139,7 +139,7 @@ func processOne(mgr *Manager) error {
 		// we want to report the result back to Faktory.
 		// we stay in this loop until we successfully report.
 		err = mgr.with(func(c *faktory.Client) error {
-			if err != nil {
+			if joberr != nil {
 				return c.Fail(job.Jid, joberr, nil)
 			} else {
 				return c.Ack(job.Jid)
