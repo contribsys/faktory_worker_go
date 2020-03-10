@@ -3,6 +3,18 @@
 ## HEAD
 
 - Fix issue reporting job errors back to Faktory
+- Add helpers for testing `Perform` funcs
+```go
+myFunc := func(ctx Context, args ...interface{}) error {
+	return nil
+}
+
+pool, err := faktory.NewPool(5)
+perf := worker.NewTestExecutor(pool)
+
+somejob := faktory.NewJob("sometype", 12, "foobar")
+err = perf.Execute(somejob, myFunc)
+```
 
 ## 1.3.0
 
