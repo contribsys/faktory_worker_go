@@ -49,7 +49,7 @@ type defaultContext struct {
 	BID  string
 	Type string
 
-	mgr *Manager
+	*faktory.Pool
 }
 
 // Jid returns the job ID for the default context
@@ -68,14 +68,9 @@ func (c *defaultContext) JobType() string {
 
 // requires Faktory Enterprise
 func (c *defaultContext) TrackProgress(percent int, desc string, reserveUntil *time.Time) error {
-	return c.mgr.with(func(cl *faktory.Client) error {
+	return c.With(func(cl *faktory.Client) error {
 		return cl.TrackSet(c.JID, percent, desc, reserveUntil)
 	})
-}
-
-// Provides a Faktory server connection to the given func
-func (c *defaultContext) With(fn func(*faktory.Client) error) error {
-	return c.mgr.with(fn)
 }
 
 var (
@@ -92,7 +87,7 @@ func (c *defaultContext) Batch(fn func(*faktory.Batch) error) error {
 	var b *faktory.Batch
 	var err error
 
-	err = c.mgr.with(func(cl *faktory.Client) error {
+	err = c.With(func(cl *faktory.Client) error {
 		b, err = cl.BatchOpen(c.BID)
 		if err != nil {
 			return err

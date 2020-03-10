@@ -158,7 +158,7 @@ func ctxFor(m *Manager, job *faktory.Job) Context {
 		Context: context.Background(),
 		JID:     job.Jid,
 		Type:    job.Type,
-		mgr:     m,
+		Pool:    m.Pool,
 	}
 	s, _ := job.GetCustom("bid")
 	if s != nil {
