@@ -93,29 +93,31 @@ func process(mgr *Manager, idx int) {
 }
 
 func processOne(mgr *Manager) error {
-	// fetch job
 	var job *faktory.Job
-	var e error
 
-	err := mgr.with(func(c *faktory.Client) error {
-		job, e = c.Fetch(mgr.queueList()...)
-		if e != nil {
-			return e
+	// explicit scopes to limit variable visibility
+	{
+		var e error
+		err := mgr.with(func(c *faktory.Client) error {
+			job, e = c.Fetch(mgr.queueList()...)
+			if e != nil {
+				return e
+			}
+			return nil
+		})
+		if err != nil {
+			return err
 		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	if job == nil {
-		return nil
+		if job == nil {
+			return nil
+		}
 	}
 
 	perform := mgr.jobHandlers[job.Type]
 
 	if perform == nil {
 		je := &NoHandlerError{JobType: job.Type}
-		err = mgr.with(func(c *faktory.Client) error {
+		err := mgr.with(func(c *faktory.Client) error {
 			return c.Fail(job.Jid, je, nil)
 		})
 		if err != nil {
@@ -138,7 +140,7 @@ func processOne(mgr *Manager) error {
 	for {
 		// we want to report the result back to Faktory.
 		// we stay in this loop until we successfully report.
-		err = mgr.with(func(c *faktory.Client) error {
+		err := mgr.with(func(c *faktory.Client) error {
 			if joberr != nil {
 				return c.Fail(job.Jid, joberr, nil)
 			} else {
