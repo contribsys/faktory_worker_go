@@ -1,7 +1,6 @@
 package faktory_worker
 
 import (
-	"context"
 	"encoding/json"
 
 	faktory "github.com/contribsys/faktory/client"
@@ -32,15 +31,6 @@ func (tp *testExecutor) Execute(specjob *faktory.Job, p Perform) error {
 		return err
 	}
 
-	c := &defaultContext{
-		Context: context.Background(),
-		JID:     job.Jid,
-		Type:    job.Type,
-		Pool:    tp.Pool,
-	}
-	s, _ := job.GetCustom("bid")
-	if s != nil {
-		c.BID = s.(string)
-	}
+	c := jobContext(tp.Pool, &job)
 	return p(c, job.Args...)
 }

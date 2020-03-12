@@ -2,10 +2,25 @@
 
 ## HEAD
 
+- **Breaking API overhaul due to misunderstanding the `context` package.**
+  I've had to make significant changes to FWG's public APIs to allow
+  for mutable contexts. This unfortunately requires breaking changes:
+```
+Job Handler
+Before: func(ctx worker.Context, args ...interface{}) error
+After: func(ctx context.Context, args ...interface{}) error
+
+Middleware Handler
+Before: func(ctx worker.Context, job *faktory.Job) error
+After: func(ctx context.Context, job *faktory.Job, next func(context.Context) error) error
+```
+  Middleware funcs now need to call `next` to continue job dispatch.
+  Use `help := worker.HelperFor(ctx)` to get the old APIs provided by `worker.Context`
+  within your handlers.
 - Fix issue reporting job errors back to Faktory
 - Add helpers for testing `Perform` funcs
 ```go
-myFunc := func(ctx Context, args ...interface{}) error {
+myFunc := func(ctx context.Context, args ...interface{}) error {
 	return nil
 }
 

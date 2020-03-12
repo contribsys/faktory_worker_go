@@ -1,6 +1,7 @@
 package faktory_worker
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"os"
@@ -40,7 +41,7 @@ type Manager struct {
 //
 //    mgr.Register("ImportantJob", ImportantFunc)
 func (mgr *Manager) Register(name string, fn Perform) {
-	mgr.jobHandlers[name] = func(ctx Context, job *faktory.Job) error {
+	mgr.jobHandlers[name] = func(ctx context.Context, job *faktory.Job) error {
 		return fn(ctx, job.Args...)
 	}
 }
@@ -72,11 +73,6 @@ func (mgr *Manager) Terminate(reallydie bool) {
 	if reallydie {
 		os.Exit(0)
 	}
-}
-
-// Use adds middleware to the chain.
-func (mgr *Manager) Use(middleware ...MiddlewareFunc) {
-	mgr.middleware = append(mgr.middleware, middleware...)
 }
 
 // NewManager returns a new manager with default values.

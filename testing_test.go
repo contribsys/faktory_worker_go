@@ -1,6 +1,7 @@
 package faktory_worker
 
 import (
+	"context"
 	"testing"
 
 	faktory "github.com/contribsys/faktory/client"
@@ -11,7 +12,7 @@ var (
 	badGlobal = 1
 )
 
-func myFunc(ctx Context, args ...interface{}) error {
+func myFunc(ctx context.Context, args ...interface{}) error {
 	badGlobal += 1
 	return nil
 }
@@ -27,7 +28,7 @@ func TestTesting(t *testing.T) {
 	assert.EqualValues(t, 2, badGlobal)
 
 	ajob := faktory.NewJob("sometype", 12, "foobar")
-	perf.Execute(ajob, func(ctx Context, args ...interface{}) error {
+	perf.Execute(ajob, func(ctx context.Context, args ...interface{}) error {
 		assert.Equal(t, 2, len(args))
 		assert.EqualValues(t, 12, args[0])
 		assert.EqualValues(t, "foobar", args[1])

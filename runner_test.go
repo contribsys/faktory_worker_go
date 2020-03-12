@@ -1,6 +1,7 @@
 package faktory_worker
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"os"
@@ -10,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func sometask(ctx Context, args ...interface{}) error {
+func sometask(ctx context.Context, args ...interface{}) error {
 	return nil
 }
 
@@ -60,7 +61,7 @@ func TestLiveServer(t *testing.T) {
 	mgr.Concurrency = 1
 	mgr.setUpWorkerProcess()
 
-	mgr.Register("aworker", func(ctx Context, args ...interface{}) error {
+	mgr.Register("aworker", func(ctx context.Context, args ...interface{}) error {
 		//fmt.Println("doing work", args)
 		return nil
 	})

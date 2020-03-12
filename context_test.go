@@ -12,10 +12,8 @@ import (
 func TestSimpleContext(t *testing.T) {
 	t.Parallel()
 
-	mgr := NewManager()
 	pool, err := faktory.NewPool(1)
 	assert.NoError(t, err)
-	mgr.Pool = pool
 
 	job := faktory.NewJob("something", 1, 2)
 	job.SetCustom("track", 1)
@@ -24,17 +22,18 @@ func TestSimpleContext(t *testing.T) {
 	//assert.NoError(t, err)
 	//cl.Push(job)
 
-	ctx := ctxFor(mgr, job)
-	assert.Equal(t, ctx.Jid(), job.Jid)
-	assert.Empty(t, ctx.Bid())
-	assert.Equal(t, "something", ctx.JobType())
+	ctx := jobContext(pool, job)
+	help := HelperFor(ctx)
+	assert.Equal(t, help.Jid(), job.Jid)
+	assert.Empty(t, help.Bid())
+	assert.Equal(t, "something", help.JobType())
 
 	_, ok := ctx.Deadline()
 	assert.False(t, ok)
 
 	//assert.NoError(t, ctx.TrackProgress(45, "Working....", nil))
 
-	err = ctx.Batch(func(b *faktory.Batch) error {
+	err = help.Batch(func(b *faktory.Batch) error {
 		return nil
 	})
 	assert.Error(t, err)
@@ -45,22 +44,24 @@ func TestSimpleContext(t *testing.T) {
 func TestBatchContext(t *testing.T) {
 	t.Parallel()
 
-	mgr := NewManager()
 	pool, err := faktory.NewPool(1)
 	assert.NoError(t, err)
-	mgr.Pool = pool
 
 	job := faktory.NewJob("something", 1, 2)
 	job.SetCustom("track", 1)
 	job.SetCustom("bid", "nosuchbatch")
 
-	ctx := ctxFor(mgr, job)
-	assert.Equal(t, ctx.Jid(), job.Jid)
-	assert.Equal(t, "nosuchbatch", ctx.Bid())
-	assert.Equal(t, "something", ctx.JobType())
+	ctx := jobContext(pool, job)
+	help := HelperFor(ctx)
+	assert.Equal(t, help.Jid(), job.Jid)
+	assert.Equal(t, "nosuchbatch", help.Bid())
+	assert.Equal(t, "something", help.JobType())
+
+	mgr := NewManager()
+	mgr.Pool = pool
 
 	withServer(t, "ent", mgr, func(cl *faktory.Client) error {
-		err = ctx.Batch(func(b *faktory.Batch) error {
+		err = help.Batch(func(b *faktory.Batch) error {
 			return nil
 		})
 		assert.Error(t, err)

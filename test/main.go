@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -10,18 +11,21 @@ import (
 	worker "github.com/contribsys/faktory_worker_go"
 )
 
-func someFunc(ctx worker.Context, args ...interface{}) error {
-	log.Printf("Working on job %s\n", ctx.Jid())
+func someFunc(ctx context.Context, args ...interface{}) error {
+	help := worker.HelperFor(ctx)
+	log.Printf("Working on job %s\n", help.Jid())
 	//log.Printf("Context %v\n", ctx)
 	//log.Printf("Args %v\n", args)
 	time.Sleep(1 * time.Second)
 	return nil
 }
 
-func batchFunc(ctx worker.Context, args ...interface{}) error {
-	log.Printf("Working on job %s\n", ctx.Jid())
-	if ctx.Bid() != "" {
-		log.Printf("within %s...\n", ctx.Bid())
+func batchFunc(ctx context.Context, args ...interface{}) error {
+	help := worker.HelperFor(ctx)
+
+	log.Printf("Working on job %s\n", help.Jid())
+	if help.Bid() != "" {
+		log.Printf("within %s...\n", help.Bid())
 	}
 	//log.Printf("Context %v\n", ctx)
 	//log.Printf("Args %v\n", args)
@@ -33,13 +37,11 @@ func main() {
 	log.SetFlags(flags)
 
 	mgr := worker.NewManager()
-	mgr.Use(func(perform worker.Handler) worker.Handler {
-		return func(ctx worker.Context, job *faktory.Job) error {
-			log.Printf("Starting work on job %s of type %s with custom %v\n", ctx.Jid(), ctx.JobType(), job.Custom)
-			err := perform(ctx, job)
-			log.Printf("Finished work on job %s with error %v\n", ctx.Jid(), err)
-			return err
-		}
+	mgr.Use(func(ctx context.Context, job *faktory.Job, next func(ctx context.Context) error) error {
+		log.Printf("Starting work on job %s of type %s with custom %v\n", job.Jid, job.Type, job.Custom)
+		err := next(ctx)
+		log.Printf("Finished work on job %s with error %v\n", job.Jid, err)
+		return err
 	})
 
 	// register job types and the function to execute them

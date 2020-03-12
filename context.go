@@ -3,92 +3,141 @@ package faktory_worker
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	faktory "github.com/contribsys/faktory/client"
 )
 
-// Context provides Go's standard Context pattern
-// along with a select few additions for job processing.
+// internal keys for context value storage
+type valueKey int
+
+const (
+	jidKey  valueKey = 1
+	bidKey  valueKey = 2
+	poolKey valueKey = 3
+	jobKey  valueKey = 4
+)
+
+var (
+	NoAssociatedBatchError = fmt.Errorf("No batch associated with this job")
+)
+
+// The Helper provides access to valuable data and APIs
+// within an executing job.
 //
-// We're pretty strict about what's exposed in the Context
+// We're pretty strict about what's exposed in the Helper
 // because execution should be orthogonal to
 // most of the Job payload contents.
-type Context interface {
-	context.Context
-
+//
+//   func myJob(ctx context.Context, args ...interface{}) error {
+//     helper := worker.HelperFor(ctx)
+//     jid := helper.Jid()
+//
+//     helper.With(func(cl *faktory.Client) error {
+//       cl.Push("anotherJob", 4, "arg")
+//		 })
+//
+type Helper interface {
 	Jid() string
 	JobType() string
+
+	// Faktory Enterprise:
+	// the BID of the Batch associated with this job
+	Bid() string
+
+	// Faktory Enterprise:
+	// open the batch associated with this job so we can add more jobs to it.
+	//
+	//   func myJob(ctx context.Context, args ...interface{}) error {
+	//     helper := worker.HelperFor(ctx)
+	//     helper.Batch(func(b *faktory.Batch) error {
+	//       return b.Push(faktory.NewJob("sometype", 1, 2, 3))
+	//     })
+	Batch(func(*faktory.Batch) error) error
+
+	// allows direct access to the Faktory server from the job
+	With(func(*faktory.Client) error) error
 
 	// Faktory Enterprise:
 	// this method integrates with Faktory Enterprise's Job Tracking feature.
 	// `reserveUntil` is optional, only needed for long jobs which have more dynamic
 	// lifetimes.
 	//
-	//     ctx.TrackProgress(10, "Updating code...", nil)
-	//     ctx.TrackProgress(20, "Cleaning caches...", &time.Now().Add(1 * time.Hour)))
+	//     helper.TrackProgress(10, "Updating code...", nil)
+	//     helper.TrackProgress(20, "Cleaning caches...", &time.Now().Add(1 * time.Hour)))
 	//
 	TrackProgress(percent int, desc string, reserveUntil *time.Time) error
-
-	// Faktory Enterprise:
-	// the BID of the Batch associated with this job
-	Bid() string
-
-	// open the batch associated with this job so we can add more jobs to it.
-	Batch(func(*faktory.Batch) error) error
-
-	// allows direct access to the Faktory server from the job
-	With(func(*faktory.Client) error) error
 }
 
-// defaultContext embeds Go's standard context and associates it with a job ID.
-type defaultContext struct {
-	context.Context
-
-	JID  string
-	BID  string
-	Type string
-
-	*faktory.Pool
+type jobHelper struct {
+	job  *faktory.Job
+	pool *faktory.Pool
 }
 
-// Jid returns the job ID for the default context
-func (c *defaultContext) Jid() string {
-	return c.JID
+func (h *jobHelper) Jid() string {
+	return h.job.Jid
+}
+func (h *jobHelper) Bid() string {
+	if b, ok := h.job.GetCustom("bid"); ok {
+		return b.(string)
+	}
+	return ""
+}
+func (h *jobHelper) JobType() string {
+	return h.job.Type
 }
 
-func (c *defaultContext) Bid() string {
-	return c.BID
+// Caution: this method must only be called within the
+// context of an executing job. It will panic if it cannot
+// create a Helper due to missing context values.
+func HelperFor(ctx context.Context) Helper {
+	if j := ctx.Value(jobKey); j != nil {
+		job := j.(*faktory.Job)
+		if p := ctx.Value(poolKey); p != nil {
+			pool := p.(*faktory.Pool)
+			return &jobHelper{
+				job:  job,
+				pool: pool,
+			}
+		}
+	}
+	log.Fatalf("Invalid context, cannot create helper")
+	return nil
 }
 
-// JobType returns the job type for the default context
-func (c *defaultContext) JobType() string {
-	return c.Type
+func jobContext(pool *faktory.Pool, job *faktory.Job) context.Context {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, poolKey, pool)
+	ctx = context.WithValue(ctx, jobKey, job)
+
+	bid, ok := job.GetCustom("bid")
+	if ok {
+		ctx = context.WithValue(ctx, bidKey, bid)
+	}
+	return ctx
 }
 
 // requires Faktory Enterprise
-func (c *defaultContext) TrackProgress(percent int, desc string, reserveUntil *time.Time) error {
-	return c.With(func(cl *faktory.Client) error {
-		return cl.TrackSet(c.JID, percent, desc, reserveUntil)
+func (h *jobHelper) TrackProgress(percent int, desc string, reserveUntil *time.Time) error {
+	return h.With(func(cl *faktory.Client) error {
+		return cl.TrackSet(h.Jid(), percent, desc, reserveUntil)
 	})
 }
 
-var (
-	NoAssociatedBatchError = fmt.Errorf("No batch associated with this job")
-)
-
 // requires Faktory Enterprise
 // Open the current batch so we can add more jobs to it.
-func (c *defaultContext) Batch(fn func(*faktory.Batch) error) error {
-	if c.BID == "" {
+func (h *jobHelper) Batch(fn func(*faktory.Batch) error) error {
+	bid := h.Bid()
+	if bid == "" {
 		return NoAssociatedBatchError
 	}
 
 	var b *faktory.Batch
 	var err error
 
-	err = c.With(func(cl *faktory.Client) error {
-		b, err = cl.BatchOpen(c.BID)
+	err = h.pool.With(func(cl *faktory.Client) error {
+		b, err = cl.BatchOpen(bid)
 		if err != nil {
 			return err
 		}
@@ -99,4 +148,8 @@ func (c *defaultContext) Batch(fn func(*faktory.Batch) error) error {
 	}
 
 	return nil
+}
+
+func (h *jobHelper) With(fn func(*faktory.Client) error) error {
+	return h.pool.With(fn)
 }

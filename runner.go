@@ -1,7 +1,6 @@
 package faktory_worker
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -126,12 +125,7 @@ func processOne(mgr *Manager) error {
 		return je
 	}
 
-	h := perform
-	for i := len(mgr.middleware) - 1; i >= 0; i-- {
-		h = mgr.middleware[i](h)
-	}
-
-	joberr := h(ctxFor(mgr, job), job)
+	joberr := dispatch(mgr.middleware, jobContext(mgr.Pool, job), job, perform)
 	if joberr != nil {
 		// job errors are normal and expected, we don't return early from them
 		mgr.Logger.Error("Error running %s job %s: %v", job.Type, job.Jid, joberr)
@@ -153,20 +147,6 @@ func processOne(mgr *Manager) error {
 		mgr.Logger.Error(err)
 		time.Sleep(1 * time.Second)
 	}
-}
-
-func ctxFor(m *Manager, job *faktory.Job) Context {
-	c := &defaultContext{
-		Context: context.Background(),
-		JID:     job.Jid,
-		Type:    job.Type,
-		Pool:    m.Pool,
-	}
-	s, _ := job.GetCustom("bid")
-	if s != nil {
-		c.BID = s.(string)
-	}
-	return c
 }
 
 // expandWeightedQueues builds a slice of queues represented the number of times equal to their weights.
