@@ -102,7 +102,7 @@ func HelperFor(ctx context.Context) Helper {
 			}
 		}
 	}
-	log.Fatalf("Invalid context, cannot create helper")
+	log.Panic("Invalid job context, cannot create faktory_worker_go job helper")
 	return nil
 }
 
