@@ -13,10 +13,8 @@ import (
 type valueKey int
 
 const (
-	jidKey  valueKey = 1
-	bidKey  valueKey = 2
-	poolKey valueKey = 3
-	jobKey  valueKey = 4
+	poolKey valueKey = 2
+	jobKey  valueKey = 3
 )
 
 var (
@@ -110,11 +108,6 @@ func jobContext(pool *faktory.Pool, job *faktory.Job) context.Context {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, poolKey, pool)
 	ctx = context.WithValue(ctx, jobKey, job)
-
-	bid, ok := job.GetCustom("bid")
-	if ok {
-		ctx = context.WithValue(ctx, bidKey, bid)
-	}
 	return ctx
 }
 

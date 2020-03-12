@@ -23,7 +23,7 @@ var (
 )
 
 func hookSignals() chan os.Signal {
-	sigchan := make(chan os.Signal)
+	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, SIGINT)
 	signal.Notify(sigchan, SIGTERM)
 	signal.Notify(sigchan, SIGTSTP)

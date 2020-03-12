@@ -71,9 +71,10 @@ func TestLiveServer(t *testing.T) {
 
 		j := faktory.NewJob("something", 1, 2)
 		j.Queue = "fwgtest"
-		cl.Push(j)
+		err := cl.Push(j)
+		assert.NoError(t, err)
 
-		err := processOne(mgr)
+		err = processOne(mgr)
 		assert.Error(t, err)
 		_, ok := err.(*NoHandlerError)
 		assert.True(t, ok)
@@ -81,7 +82,8 @@ func TestLiveServer(t *testing.T) {
 
 		j = faktory.NewJob("aworker", 1, 2)
 		j.Queue = "fwgtest"
-		cl.Push(j)
+		err = cl.Push(j)
+		assert.NoError(t, err)
 
 		err = processOne(mgr)
 		assert.NoError(t, err)
