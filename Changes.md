@@ -1,8 +1,8 @@
 # faktory\_worker\_go
 
-## HEAD
+## 1.4.0
 
-- **Breaking API overhaul due to misunderstanding the `context` package.**
+- **Breaking API changes due to misunderstanding the `context` package.**
   I've had to make significant changes to FWG's public APIs to allow
   for mutable contexts. This unfortunately requires breaking changes:
 ```
