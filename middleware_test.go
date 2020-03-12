@@ -22,6 +22,10 @@ func TestMiddleware(t *testing.T) {
 	counter := 0
 	blahFunc := func(ctx context.Context, job *faktory.Job) error {
 		assert.EqualValues(t, 4.0, ctx.Value("a"))
+		help := HelperFor(ctx)
+		assert.Equal(t, job.Jid, help.Jid())
+		assert.Equal(t, job.Type, help.JobType())
+		assert.Equal(t, "", help.Bid())
 		counter += 1
 		return nil
 	}
