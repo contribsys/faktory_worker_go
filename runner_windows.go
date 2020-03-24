@@ -14,9 +14,9 @@ var (
 	// SIGINT is and alias for syscall.SIGINT
 	SIGINT os.Signal = os.Interrupt
 
-	signalMap = map[os.Signal]eventType{
-		SIGTERM: Shutdown,
-		SIGINT:  Shutdown,
+	signalMap = map[os.Signal]string{
+		SIGTERM: "terminate",
+		SIGINT:  "terminate",
 	}
 )
 
