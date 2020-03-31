@@ -128,7 +128,7 @@ func processOne(mgr *Manager) error {
 	joberr := dispatch(mgr.middleware, jobContext(mgr.Pool, job), job, perform)
 	if joberr != nil {
 		// job errors are normal and expected, we don't return early from them
-		mgr.Logger.Error("Error running %s job %s: %v", job.Type, job.Jid, joberr)
+		mgr.Logger.Errorf("Error running %s job %s: %v", job.Type, job.Jid, joberr)
 	}
 
 	for {
