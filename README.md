@@ -36,8 +36,9 @@ import (
   worker "github.com/contribsys/faktory_worker_go"
 )
 
-func someFunc(ctx worker.Context, args ...interface{}) error {
-  fmt.Println("Working on job", ctx.Jid())
+func someFunc(ctx context.Context, args ...interface{}) error {
+  help := worker.HelperFor(ctx)
+	log.Printf("Working on job %s\n", help.Jid())
   return nil
 }
 
@@ -77,10 +78,11 @@ indirection is useful for SaaSes, Heroku Addons, etc.
 * How do I push new jobs to Faktory?
 
 1. Inside a job, you can check out a connection from the Pool of Faktory
-   connections via the `With` method:
+   connections using the job helper's `With` method:
 ```go
-func someFunc(ctx worker.Context, args ...interface{}) error {
-  return ctx.With(func(cl *faktory.Client) error {
+func someFunc(ctx context.Context, args ...interface{}) error {
+  help := worker.HelperFor(ctx)
+  return help.With(func(cl *faktory.Client) error {
     job := faktory.NewJob("SomeJob", 1, 2, 3)
     return cl.Push(job)
   })
