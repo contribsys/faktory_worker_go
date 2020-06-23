@@ -1,5 +1,10 @@
 # faktory\_worker\_go
 
+## HEAD
+
+- Fix connection issue which causes worker processes to appear and disappear on
+  Busy tab. [#47]
+
 ## 1.4.0
 
 - **Breaking API changes due to misunderstanding the `context` package.**
