@@ -111,7 +111,7 @@ func (mgr *Manager) setUpWorkerProcess() {
 	faktory.Labels = mgr.Labels
 
 	if mgr.Pool == nil {
-		pool, err := faktory.NewPool(mgr.Concurrency)
+		pool, err := faktory.NewPool(mgr.Concurrency + 2)
 		if err != nil {
 			log.Panicf("Couldn't create Faktory connection pool: %v", err)
 		}
@@ -127,7 +127,7 @@ func (mgr *Manager) Run() {
 
 	go heartbeat(mgr)
 
-	mgr.Logger.Infof("faktory_worker_go PID %d now ready to process jobs", os.Getpid())
+	mgr.Logger.Infof("faktory_worker_go %s PID %d now ready to process jobs", Version, os.Getpid())
 	for i := 0; i < mgr.Concurrency; i++ {
 		go process(mgr, i)
 	}
