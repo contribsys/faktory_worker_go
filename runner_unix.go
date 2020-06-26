@@ -1,4 +1,4 @@
-// +build linux freebsd netbsd openbsd darwin
+// +build linux freebsd netbsd openbsd dragonfly solaris illumos aix darwin
 
 package faktory_worker
 
