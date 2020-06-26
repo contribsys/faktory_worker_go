@@ -1,4 +1,4 @@
-// +build linux bsd darwin
+// +build linux freebsd netbsd openbsd darwin
 
 package faktory_worker
 
