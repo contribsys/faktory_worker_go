@@ -31,6 +31,14 @@ func batchFunc(ctx context.Context, args ...interface{}) error {
 	//log.Printf("Args %v\n", args)
 	return nil
 }
+func fastFunc(ctx context.Context, args ...interface{}) error {
+	//help := worker.HelperFor(ctx)
+	//log.Printf("Working on job %s\n", help.Jid())
+	//if rand.Int31()%10 == 1 {
+	//return errors.New("oops")
+	//}
+	return nil
+}
 
 func main() {
 	flags := log.Ldate | log.Ltime | log.Lmicroseconds | log.LUTC
@@ -49,6 +57,7 @@ func main() {
 	mgr.Register("SomeWorker", someFunc)
 	mgr.Register("ImportImageJob", batchFunc)
 	mgr.Register("ImportImageSuccess", batchFunc)
+	mgr.Register("fast", fastFunc)
 	//mgr.Register("AnotherJob", anotherFunc)
 
 	// use up to N goroutines to execute jobs
@@ -63,18 +72,51 @@ func main() {
 		return nil
 	})
 	go func() {
-		for {
-			if quit {
-				return
-			}
-			batch()
-			produce()
-			time.Sleep(1 * time.Second)
+		//for {
+		if quit {
+			return
 		}
+		batch()
+		unique()
+		//produce()
+		//time.Sleep(1 * time.Second)
+		//}
 	}()
 
 	// Start processing jobs, this method does not return
 	mgr.Run()
+}
+
+func unique() {
+	pool, err := faktory.NewPool(5)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%+v\n", pool)
+
+	pool.With(func(cl *faktory.Client) error {
+		if err != nil {
+			panic(err)
+		}
+
+		job := faktory.NewJob("fast", 1, 2, 3)
+		job.SetCustom("unique_for", 0.5)
+		err := cl.Push(job)
+		if err != nil {
+			panic(err)
+		}
+
+		err = cl.Push(job)
+		if err != nil {
+			if e, ok := err.(*faktory.ProtocolError); ok {
+				fmt.Printf("%+v\n", *e)
+				return e
+			}
+		}
+		panic(fmt.Sprintf("Expected: %+v", err))
+	})
+	fmt.Printf("%+v\n", pool)
 }
 
 func batch() {
@@ -101,8 +143,18 @@ func batch() {
 	b.Success = faktory.NewJob("ImportImageSuccess", "parent", "1234")
 	// Once we call Jobs(), the batch is off and running
 	err = b.Jobs(func() error {
-		b.Push(faktory.NewJob("ImportImageJob", "1"))
+		err := b.Push(faktory.NewJob("ImportImageJob", "1"))
+		if err != nil {
+			return err
+		}
 
+		fmt.Println("Creating jobs")
+		for i := 1; i <= 10000; i++ {
+			err = b.Push(faktory.NewJob("fast", []interface{}{}))
+			if err != nil {
+				return err
+			}
+		}
 		// a child batch represents a set of jobs which can be monitored
 		// separately from the parent batch's jobs. parent success won't
 		// fire until child success runs without error.
