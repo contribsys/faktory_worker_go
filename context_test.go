@@ -22,7 +22,7 @@ func TestSimpleContext(t *testing.T) {
 	//assert.NoError(t, err)
 	//cl.Push(job)
 
-	ctx := jobContext(pool, job)
+	ctx := jobContext(false, pool, job)
 	help := HelperFor(ctx)
 	assert.Equal(t, help.Jid(), job.Jid)
 	assert.Empty(t, help.Bid())
@@ -51,7 +51,7 @@ func TestBatchContext(t *testing.T) {
 	job.SetCustom("track", 1)
 	job.SetCustom("_bid", "nosuchbatch")
 
-	ctx := jobContext(pool, job)
+	ctx := jobContext(false, pool, job)
 	help := HelperFor(ctx)
 	assert.Equal(t, help.Jid(), job.Jid)
 	assert.Equal(t, "nosuchbatch", help.Bid())
