@@ -77,7 +77,7 @@ func (h *jobHelper) Jid() string {
 	return h.job.Jid
 }
 func (h *jobHelper) Bid() string {
-	if b, ok := h.job.GetCustom("_bid"); ok {
+	if b, ok := h.job.GetCustom("bid"); ok {
 		return b.(string)
 	}
 	return ""

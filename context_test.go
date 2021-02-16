@@ -49,7 +49,7 @@ func TestBatchContext(t *testing.T) {
 
 	job := faktory.NewJob("something", 1, 2)
 	job.SetCustom("track", 1)
-	job.SetCustom("_bid", "nosuchbatch")
+	job.SetCustom("bid", "nosuchbatch")
 
 	ctx := jobContext(pool, job)
 	help := HelperFor(ctx)
