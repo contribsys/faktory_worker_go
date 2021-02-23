@@ -80,7 +80,7 @@ func NewManager() *Manager {
 	return &Manager{
 		Concurrency: 20,
 		Logger:      NewStdLogger(),
-		Labels:      []string{"golang"},
+		Labels:      []string{"golang-" + Version},
 		Pool:        nil,
 
 		state:          "",
@@ -128,6 +128,7 @@ func (mgr *Manager) Run() {
 	go heartbeat(mgr)
 
 	mgr.Logger.Infof("faktory_worker_go %s PID %d now ready to process jobs", Version, os.Getpid())
+	mgr.Logger.Debugf("Using Faktory Client API %s", faktory.Version)
 	for i := 0; i < mgr.Concurrency; i++ {
 		go process(mgr, i)
 	}

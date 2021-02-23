@@ -72,15 +72,15 @@ func main() {
 		return nil
 	})
 	go func() {
-		//for {
-		if quit {
-			return
-		}
 		batch()
 		unique()
-		//produce()
-		//time.Sleep(1 * time.Second)
-		//}
+		for {
+			if quit {
+				return
+			}
+			produce()
+			time.Sleep(1 * time.Second)
+		}
 	}()
 
 	// Start processing jobs, this method does not return
@@ -98,6 +98,10 @@ func unique() {
 	pool.With(func(cl *faktory.Client) error {
 		if err != nil {
 			panic(err)
+		}
+
+		if !isEnt(cl) {
+			return nil
 		}
 
 		job := faktory.NewJob("fast", 1, 2, 3)
@@ -119,18 +123,22 @@ func unique() {
 	fmt.Printf("%+v\n", pool)
 }
 
+func isEnt(cl *faktory.Client) bool {
+	hash, err := cl.Info()
+	if err != nil {
+		panic(err)
+	}
+	desc := hash["server"].(map[string]interface{})["description"].(string)
+	return strings.Contains(desc, "Enterprise")
+}
+
 func batch() {
 	cl, err := faktory.Open()
 	if err != nil {
 		panic(err)
 	}
 
-	hash, err := cl.Info()
-	if err != nil {
-		panic(err)
-	}
-	desc := hash["server"].(map[string]interface{})["description"].(string)
-	if !strings.Contains(desc, "Enterprise") {
+	if !isEnt(cl) {
 		return
 	}
 
