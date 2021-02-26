@@ -135,7 +135,7 @@ func isEnt(cl *faktory.Client) bool {
 func batch() {
 	cl, err := faktory.Open()
 	if err != nil {
-		panic(err)
+		return
 	}
 
 	if !isEnt(cl) {
@@ -193,7 +193,7 @@ func batch() {
 func produce() {
 	cl, err := faktory.Open()
 	if err != nil {
-		panic(err)
+		return
 	}
 
 	job := faktory.NewJob("SomeJob", 1, 2, "hello")
@@ -202,7 +202,7 @@ func produce() {
 	}
 	err = cl.Push(job)
 	if err != nil {
-		panic(err)
+		return
 	}
 	//fmt.Println(cl.Info())
 }
