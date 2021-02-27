@@ -1,5 +1,5 @@
 test:
-	go test ./...
+	go test -v ./...
 
 work:
 	go run test/main.go
