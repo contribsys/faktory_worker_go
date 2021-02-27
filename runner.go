@@ -198,13 +198,13 @@ func shuffleQueues(queues []string) []string {
 
 // uniqQueues returns a slice of length len, of the unique elements while maintaining order.
 // The underlying array is modified to avoid allocating another one.
-func uniqQueues(len int, queues []string) []string {
+func uniqQueues(length int, queues []string) []string {
 	// Record the unique values and position.
 	pos := 0
 	uniqMap := make(map[string]int)
-	for _, v := range queues {
-		if _, ok := uniqMap[v]; !ok {
-			uniqMap[v] = pos
+	for idx := range queues {
+		if _, ok := uniqMap[queues[idx]]; !ok {
+			uniqMap[queues[idx]] = pos
 			pos++
 		}
 	}
@@ -215,7 +215,7 @@ func uniqQueues(len int, queues []string) []string {
 	}
 
 	// Slice only what we need.
-	return queues[:len]
+	return queues[:length]
 }
 
 func dumpThreads(logg Logger) {
