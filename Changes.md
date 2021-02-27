@@ -2,6 +2,7 @@
 
 ## HEAD
 
+- Send process RSS to Faktory (only available on Linux)
 - Fix connection issue which causes worker processes to appear and disappear on
   Busy tab. [#47]
 

@@ -10,6 +10,6 @@ cover:
 	open coverage.html
 
 lint:
-	go vet .
+	golangci-lint run
 
 .PHONY: work test cover

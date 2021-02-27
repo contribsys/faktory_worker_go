@@ -95,7 +95,7 @@ func unique() {
 
 	fmt.Printf("%+v\n", pool)
 
-	pool.With(func(cl *faktory.Client) error {
+	_ = pool.With(func(cl *faktory.Client) error {
 		if err != nil {
 			panic(err)
 		}
