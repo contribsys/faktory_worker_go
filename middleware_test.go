@@ -31,7 +31,7 @@ func TestMiddleware(t *testing.T) {
 	}
 
 	job := faktory.NewJob("blah", 1, 2)
-	ctx := jobContext(mgr.Pool, job)
+	ctx := jobContext(false, mgr.Pool, job)
 	assert.Nil(t, ctx.Value("a"))
 	assert.EqualValues(t, 0, counter)
 
