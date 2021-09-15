@@ -93,8 +93,6 @@ func unique() {
 		panic(err)
 	}
 
-	fmt.Printf("%+v\n", pool)
-
 	_ = pool.With(func(cl *faktory.Client) error {
 		if err != nil {
 			panic(err)
@@ -120,7 +118,6 @@ func unique() {
 		}
 		panic(fmt.Sprintf("Expected: %+v", err))
 	})
-	fmt.Printf("%+v\n", pool)
 }
 
 func isEnt(cl *faktory.Client) bool {
