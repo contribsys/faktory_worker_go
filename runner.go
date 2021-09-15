@@ -29,7 +29,9 @@ func (s *NoHandlerError) Error() string {
 
 func heartbeat(mgr *Manager) {
 	mgr.shutdownWaiter.Add(1)
-	timer := time.NewTicker(10 * time.Second)
+	defer mgr.shutdownWaiter.Done()
+
+	timer := time.NewTicker(15 * time.Second)
 	for {
 		select {
 		case <-timer.C:
@@ -56,7 +58,6 @@ func heartbeat(mgr *Manager) {
 			}
 		case <-mgr.done:
 			timer.Stop()
-			mgr.shutdownWaiter.Done()
 			return
 		}
 	}
@@ -64,10 +65,11 @@ func heartbeat(mgr *Manager) {
 
 func process(mgr *Manager, idx int) {
 	mgr.shutdownWaiter.Add(1)
+	defer mgr.shutdownWaiter.Done()
+
 	// delay initial fetch randomly to prevent thundering herd.
 	// this will pause between 0 and 2B nanoseconds, i.e. 0-2 seconds
 	time.Sleep(time.Duration(rand.Int31()))
-	defer mgr.shutdownWaiter.Done()
 
 	for {
 		if mgr.state != "" {
@@ -83,7 +85,7 @@ func process(mgr *Manager, idx int) {
 
 		err := processOne(mgr)
 		if err != nil {
-			mgr.Logger.Error(err)
+			mgr.Logger.Debug(err)
 			if _, ok := err.(*NoHandlerError); !ok {
 				time.Sleep(1 * time.Second)
 			}
@@ -144,8 +146,14 @@ func processOne(mgr *Manager) error {
 		if err == nil {
 			return nil
 		}
-		mgr.Logger.Error(err)
-		time.Sleep(1 * time.Second)
+		select {
+		case <-mgr.done:
+			mgr.Logger.Error(fmt.Errorf("Unable to report JID %v result to Faktory: %w", job.Jid, err))
+			return nil
+		default:
+			mgr.Logger.Debug(err)
+			time.Sleep(1 * time.Second)
+		}
 	}
 }
 
