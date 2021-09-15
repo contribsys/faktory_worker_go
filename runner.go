@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"os"
 	"runtime"
 	"sort"
+	"strings"
+	"syscall"
 	"time"
 
 	faktory "github.com/contribsys/faktory/client"
@@ -39,6 +42,12 @@ func heartbeat(mgr *Manager) {
 			// errors will heal eventually
 			err := mgr.with(func(c *faktory.Client) error {
 				data, err := c.Beat(mgr.state)
+				if err != nil && strings.Contains(err.Error(), "Unknown worker") {
+					// If our heartbeat expires, we must restart and re-authenticate.
+					// Use a signal so we can unwind and shutdown cleanly.
+					mgr.Logger.Warn("Faktory heartbeat has expired, shutting down...")
+					syscall.Kill(os.Getpid(), syscall.SIGTERM)
+				}
 				if err != nil || data == "" {
 					return err
 				}

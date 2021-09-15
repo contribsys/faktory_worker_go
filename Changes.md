@@ -1,7 +1,8 @@
 # faktory\_worker\_go
 
-## HEAD
+## 1.5.0
 
+- Auto-shutdown worker process if heartbeat expires due to network issues [#57]
 - Send process RSS to Faktory (only available on Linux)
 - Fix connection issue which causes worker processes to appear and disappear on
   Busy tab. [#47]

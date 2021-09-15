@@ -78,7 +78,7 @@ func main() {
 			if quit {
 				return
 			}
-			produce()
+			produce(mgr)
 			time.Sleep(1 * time.Second)
 		}
 	}()
@@ -190,19 +190,16 @@ func batch() {
 }
 
 // Push something for us to work on.
-func produce() {
-	cl, err := faktory.Open()
-	if err != nil {
-		return
-	}
-
+func produce(mgr *worker.Manager) {
 	job := faktory.NewJob("SomeJob", 1, 2, "hello")
 	job.Custom = map[string]interface{}{
 		"hello": "world",
 	}
-	err = cl.Push(job)
+
+	err := mgr.Pool.With(func(cl *faktory.Client) error {
+		return cl.Push(job)
+	})
 	if err != nil {
-		return
+		//fmt.Println(err)
 	}
-	//fmt.Println(cl.Info())
 }
