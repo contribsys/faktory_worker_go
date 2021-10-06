@@ -14,8 +14,8 @@ import (
 func someFunc(ctx context.Context, args ...interface{}) error {
 	help := worker.HelperFor(ctx)
 	log.Printf("Working on job %s\n", help.Jid())
-	//log.Printf("Context %v\n", ctx)
-	//log.Printf("Args %v\n", args)
+	// log.Printf("Context %v\n", ctx)
+	// log.Printf("Args %v\n", args)
 	time.Sleep(1 * time.Second)
 	return nil
 }
@@ -27,16 +27,16 @@ func batchFunc(ctx context.Context, args ...interface{}) error {
 	if help.Bid() != "" {
 		log.Printf("within %s...\n", help.Bid())
 	}
-	//log.Printf("Context %v\n", ctx)
-	//log.Printf("Args %v\n", args)
+	// log.Printf("Context %v\n", ctx)
+	// log.Printf("Args %v\n", args)
 	return nil
 }
 func fastFunc(ctx context.Context, args ...interface{}) error {
-	//help := worker.HelperFor(ctx)
-	//log.Printf("Working on job %s\n", help.Jid())
-	//if rand.Int31()%10 == 1 {
-	//return errors.New("oops")
-	//}
+	// help := worker.HelperFor(ctx)
+	// log.Printf("Working on job %s\n", help.Jid())
+	// if rand.Int31()%10 == 1 {
+	// return errors.New("oops")
+	// }
 	return nil
 }
 
@@ -197,6 +197,6 @@ func produce(mgr *worker.Manager) {
 		return cl.Push(job)
 	})
 	if err != nil {
-		//fmt.Println(err)
+		fmt.Printf("produce: %v\n", err)
 	}
 }
