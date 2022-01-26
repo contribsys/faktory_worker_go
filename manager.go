@@ -89,9 +89,9 @@ func NewManager() *Manager {
 		shutdownWaiter: &sync.WaitGroup{},
 		jobHandlers:    map[string]Handler{},
 		eventHandlers: map[lifecycleEventType][]LifecycleEventHandler{
-			Startup:  []LifecycleEventHandler{},
-			Quiet:    []LifecycleEventHandler{},
-			Shutdown: []LifecycleEventHandler{},
+			Startup:  {},
+			Quiet:    {},
+			Shutdown: {},
 		},
 		weightedPriorityQueuesEnabled: false,
 		weightedQueues:                []string{},
