@@ -15,6 +15,8 @@ import (
 // Manager coordinates the processes for the worker.  It is responsible for
 // starting and stopping goroutines to perform work at the desired concurrency level
 type Manager struct {
+	mut sync.Mutex
+
 	Concurrency int
 	Logger      Logger
 	ProcessWID  string
@@ -55,6 +57,13 @@ func (mgr *Manager) On(event lifecycleEventType, fn LifecycleEventHandler) {
 // After calling Quiet(), no more jobs will be pulled
 // from Faktory by this process.
 func (mgr *Manager) Quiet() {
+	mgr.mut.Lock()
+	defer mgr.mut.Unlock()
+
+	if mgr.state == "quiet" {
+		return
+	}
+
 	mgr.Logger.Info("Quieting...")
 	mgr.state = "quiet"
 	mgr.fireEvent(Quiet)
@@ -63,6 +72,13 @@ func (mgr *Manager) Quiet() {
 // Terminate signals that the various components should shutdown.
 // Blocks on the shutdownWaiter until all components have finished.
 func (mgr *Manager) Terminate(reallydie bool) {
+	mgr.mut.Lock()
+	defer mgr.mut.Unlock()
+
+	if mgr.state == "terminate" {
+		return
+	}
+
 	mgr.Logger.Info("Shutting down...")
 	mgr.state = "terminate"
 	close(mgr.done)
@@ -99,6 +115,9 @@ func NewManager() *Manager {
 }
 
 func (mgr *Manager) setUpWorkerProcess() {
+	mgr.mut.Lock()
+	defer mgr.mut.Unlock()
+
 	// This will signal to Faktory that all connections from this process
 	// are worker connections.
 	if len(mgr.ProcessWID) == 0 {
@@ -110,18 +129,27 @@ func (mgr *Manager) setUpWorkerProcess() {
 	// Set labels to be displayed in the UI
 	faktory.Labels = mgr.Labels
 
-	if mgr.Pool == nil {
+	// terminate closes the pool so a new one is needed
+	if mgr.Pool == nil || mgr.state == "terminate" {
 		pool, err := faktory.NewPool(mgr.Concurrency + 2)
 		if err != nil {
 			log.Panicf("Couldn't create Faktory connection pool: %v", err)
 		}
 		mgr.Pool = pool
 	}
+
+	if mgr.state != "" {
+		if mgr.state == "terminate" {
+			mgr.done = make(chan interface{})
+		}
+
+		mgr.state = ""
+	}
 }
 
-// Run starts processing jobs.
-// This method does not return.
-func (mgr *Manager) Run() {
+// RunWithContext starts processing jobs.
+// If the context is present then os signals will be ignored, the context must be canceled for the method to return.
+func (mgr *Manager) RunWithContext(ctx context.Context) {
 	mgr.setUpWorkerProcess()
 	mgr.fireEvent(Startup)
 
@@ -133,12 +161,19 @@ func (mgr *Manager) Run() {
 		go process(mgr, i)
 	}
 
-	sigchan := hookSignals()
-
-	for {
-		sig := <-sigchan
+	if ctx == nil {
+		sig := <-hookSignals()
 		mgr.handleEvent(signalMap[sig])
+	} else {
+		<-ctx.Done()
+		mgr.Terminate(false)
 	}
+}
+
+// Run starts processing jobs.
+// This method does not return.
+func (mgr *Manager) Run() {
+	mgr.RunWithContext(nil)
 }
 
 // One of the Process*Queues methods should be called once before Run()
