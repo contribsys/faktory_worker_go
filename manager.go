@@ -2,7 +2,7 @@ package faktory_worker
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"math/rand"
 	"os"
 	"strconv"
@@ -114,9 +114,13 @@ func NewManager() *Manager {
 	}
 }
 
-func (mgr *Manager) setUpWorkerProcess() {
+func (mgr *Manager) setUpWorkerProcess() error {
 	mgr.mut.Lock()
 	defer mgr.mut.Unlock()
+
+	if mgr.state != "" {
+		return fmt.Errorf("cannot start worker process for the mananger in %v state", mgr.state)
+	}
 
 	// This will signal to Faktory that all connections from this process
 	// are worker connections.
@@ -129,28 +133,24 @@ func (mgr *Manager) setUpWorkerProcess() {
 	// Set labels to be displayed in the UI
 	faktory.Labels = mgr.Labels
 
-	// terminate closes the pool so a new one is needed
-	if mgr.Pool == nil || mgr.state == "terminate" {
+	if mgr.Pool == nil {
 		pool, err := faktory.NewPool(mgr.Concurrency + 2)
 		if err != nil {
-			log.Panicf("Couldn't create Faktory connection pool: %v", err)
+			return fmt.Errorf("couldn't create Faktory connection pool: %w", err)
 		}
 		mgr.Pool = pool
 	}
 
-	if mgr.state != "" {
-		if mgr.state == "terminate" {
-			mgr.done = make(chan interface{})
-		}
-
-		mgr.state = ""
-	}
+	return nil
 }
 
 // RunWithContext starts processing jobs.
 // If the context is present then os signals will be ignored, the context must be canceled for the method to return.
-func (mgr *Manager) RunWithContext(ctx context.Context) {
-	mgr.setUpWorkerProcess()
+func (mgr *Manager) RunWithContext(ctx context.Context) error {
+	if err := mgr.setUpWorkerProcess(); err != nil {
+		return err
+	}
+
 	mgr.fireEvent(Startup)
 
 	go heartbeat(mgr)
@@ -168,12 +168,14 @@ func (mgr *Manager) RunWithContext(ctx context.Context) {
 		<-ctx.Done()
 		mgr.Terminate(false)
 	}
+
+	return nil
 }
 
 // Run starts processing jobs.
 // This method does not return.
-func (mgr *Manager) Run() {
-	mgr.RunWithContext(nil)
+func (mgr *Manager) Run() error {
+	return mgr.RunWithContext(nil)
 }
 
 // One of the Process*Queues methods should be called once before Run()
