@@ -144,8 +144,9 @@ func (mgr *Manager) setUpWorkerProcess() error {
 	return nil
 }
 
-// RunWithContext starts processing jobs.
-// If the context is present then os signals will be ignored, the context must be canceled for the method to return.
+// RunWithContext starts processing jobs. The method will return if an error is encountered while starting.
+// If the context is present then os signals will be ignored, the context must be canceled for the method to return
+// after running.
 func (mgr *Manager) RunWithContext(ctx context.Context) error {
 	if err := mgr.setUpWorkerProcess(); err != nil {
 		return err
@@ -173,7 +174,7 @@ func (mgr *Manager) RunWithContext(ctx context.Context) error {
 }
 
 // Run starts processing jobs.
-// This method does not return.
+// This method does not return unless an error is encountered while starting.
 func (mgr *Manager) Run() error {
 	return mgr.RunWithContext(nil)
 }
