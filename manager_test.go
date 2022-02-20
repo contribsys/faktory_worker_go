@@ -58,7 +58,18 @@ func TestManagerSetup(t *testing.T) {
 	mgr.Logger = logg
 	assert.Equal(t, "", mgr.handleEvent("dump"))
 
+	terminateCalled := false
+	mgr.On(Shutdown, func(m *Manager) error {
+		terminateCalled = true
+		assert.NotNil(t, m)
+		return nil
+	})
 	mgr.Terminate(false)
+	assert.Equal(t, true, terminateCalled)
+	// calling terminate again should be a noop
+	terminateCalled = false
+	mgr.Terminate(false)
+	assert.Equal(t, false, terminateCalled)
 }
 
 func withServer(t *testing.T, lvl string, mgr *Manager, fn func(cl *faktory.Client) error) {
