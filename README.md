@@ -27,18 +27,21 @@ To process background jobs, follow these steps:
 2. Set a few optional parameters
 3. Start the processing
 
-To stop the process, send the TERM or INT signal.
+There are a couple ways to stop the process.
+In this example, send the TERM or INT signal.
 
 ```go
+package main
+
 import (
-  "fmt"
+  "log"
 
   worker "github.com/contribsys/faktory_worker_go"
 )
 
 func someFunc(ctx context.Context, args ...interface{}) error {
   help := worker.HelperFor(ctx)
-	log.Printf("Working on job %s\n", help.Jid())
+  log.Printf("Working on job %s\n", help.Jid())
   return nil
 }
 
@@ -58,8 +61,78 @@ func main() {
   // alternatively you can use weights to avoid starvation
   //mgr.ProcessWeightedPriorityQueues(map[string]int{"critical":3, "default":2, "bulk":1})
 
-  // Start processing jobs, this method does not return
+  // Start processing jobs, this method does not return unless an error is returned
   mgr.Run()
+}
+```
+
+Alternatively you can control the stopping of the process with by
+using `RunWithContext`. **You cannot stop the process with signals
+if you pass a non nil context to `RunWithContext`.**
+
+```go
+package main
+
+import (
+  "context"
+  "log"
+  "os"
+  "os/signal"
+  "syscall"
+
+  worker "github.com/contribsys/faktory_worker_go"
+)
+
+func someFunc(ctx context.Context, args ...interface{}) error {
+  help := worker.HelperFor(ctx)
+  log.Printf("Working on job %s\n", help.Jid())
+  return nil
+}
+
+func main() {
+  ctx, cancel := context.WithCancel(context.Background())
+  mgr := worker.NewManager()
+
+  // register job types and the function to execute them
+  mgr.Register("SomeJob", someFunc)
+  //mgr.Register("AnotherJob", anotherFunc)
+
+  // use up to N goroutines to execute jobs
+  mgr.Concurrency = 20
+
+  // pull jobs from these queues, in this order of precedence
+  mgr.ProcessStrictPriorityQueues("critical", "default", "bulk")
+
+  // alternatively you can use weights to avoid starvation
+  //mgr.ProcessWeightedPriorityQueues(map[string]int{"critical":3, "default":2, "bulk":1})
+
+  go func(){
+    // Start processing jobs in background routine, this method does not return 
+    // unless an error is returned or cancel() is called
+    mgr.RunWithContext(ctx)
+  }()
+  
+  go func() {
+    stopSignals := []os.Signal{
+      syscall.SIGTERM, 
+      syscall.SIGINT,
+    }
+    stop := make(chan os.Signal, len(stopSignals))
+    for _, s := range stopSignals {
+       signal.Notify(stop, s)
+    }
+
+    for {
+      select {
+      case <-ctx.Done():
+        return
+      case <-stop:
+        cancel()
+      }
+    }
+  }()
+  
+  <-ctx.Done()
 }
 ```
 
