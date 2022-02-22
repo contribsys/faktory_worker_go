@@ -148,16 +148,13 @@ func (mgr *Manager) setUpWorkerProcess() error {
 // If the context is present then os signals will be ignored, the context must be canceled for the method to return
 // after running.
 func (mgr *Manager) RunWithContext(ctx context.Context) error {
-	err := mgr.boot()
-	if err != nil {
-		return err
-	}
-	<-ctx.Done()
-	mgr.Terminate(false)
-	return nil
+	return mgr.boot(func() {
+		<-ctx.Done()
+		mgr.Terminate(false)
+	})
 }
 
-func (mgr *Manager) boot() error {
+func (mgr *Manager) boot(termFunc func()) error {
 	err := mgr.setUpWorkerProcess()
 	if err != nil {
 		return err
@@ -172,20 +169,17 @@ func (mgr *Manager) boot() error {
 		go process(mgr, i)
 	}
 
+	termFunc()
 	return nil
 }
 
 // Run starts processing jobs.
 // This method does not return unless an error is encountered while starting.
 func (mgr *Manager) Run() error {
-	err := mgr.boot()
-	if err != nil {
-		return err
-	}
-	for {
+	return mgr.boot(func() {
 		sig := <-hookSignals()
 		mgr.handleEvent(signalMap[sig])
-	}
+	})
 }
 
 // One of the Process*Queues methods should be called once before Run()
