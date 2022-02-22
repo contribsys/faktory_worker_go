@@ -61,14 +61,13 @@ func main() {
   // alternatively you can use weights to avoid starvation
   //mgr.ProcessWeightedPriorityQueues(map[string]int{"critical":3, "default":2, "bulk":1})
 
-  // Start processing jobs, this method does not return unless an error is returned
+  // Start processing jobs, this method does not return.
   mgr.Run()
 }
 ```
 
-Alternatively you can control the stopping of the process with by
-using `RunWithContext`. **You cannot stop the process with signals
-if you pass a non nil context to `RunWithContext`.**
+Alternatively you can control the stopping of the Manager using
+`RunWithContext`. **You must process any signals yourself.**
 
 ```go
 package main

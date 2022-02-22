@@ -1,5 +1,11 @@
 # faktory\_worker\_go
 
+## 1.6.0
+
+- Upgrade to Go 1.17 and Faktory 1.6.0.
+- Add `Manager.RunWithContext(ctx context.Context) error` [#58]
+  Allows the caller to directly control when FWG stops. See README for usage.
+
 ## 1.5.0
 
 - Auto-shutdown worker process if heartbeat expires due to network issues [#57]

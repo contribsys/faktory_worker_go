@@ -24,7 +24,8 @@ func TestManagerSetup(t *testing.T) {
 	}
 
 	mgr := NewManager()
-	mgr.setUpWorkerProcess()
+	err = mgr.setUpWorkerProcess()
+	assert.NoError(t, err)
 
 	startupCalled := false
 	mgr.On(Startup, func(m *Manager) error {

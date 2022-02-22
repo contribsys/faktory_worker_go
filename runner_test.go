@@ -59,7 +59,8 @@ func TestLiveServer(t *testing.T) {
 	mgr := NewManager()
 	mgr.ProcessStrictPriorityQueues("fwgtest")
 	mgr.Concurrency = 1
-	mgr.setUpWorkerProcess()
+	err := mgr.setUpWorkerProcess()
+	assert.NoError(t, err)
 
 	mgr.Register("aworker", func(ctx context.Context, args ...interface{}) error {
 		//fmt.Println("doing work", args)

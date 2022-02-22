@@ -87,7 +87,7 @@ func (mgr *Manager) Terminate(reallydie bool) {
 	mgr.Pool.Close()
 	mgr.Logger.Info("Goodbye")
 	if reallydie {
-		os.Exit(0)
+		os.Exit(0) // nolint:gocritic
 	}
 }
 
@@ -148,12 +148,22 @@ func (mgr *Manager) setUpWorkerProcess() error {
 // If the context is present then os signals will be ignored, the context must be canceled for the method to return
 // after running.
 func (mgr *Manager) RunWithContext(ctx context.Context) error {
-	if err := mgr.setUpWorkerProcess(); err != nil {
+	err := mgr.boot()
+	if err != nil {
+		return err
+	}
+	<-ctx.Done()
+	mgr.Terminate(false)
+	return nil
+}
+
+func (mgr *Manager) boot() error {
+	err := mgr.setUpWorkerProcess()
+	if err != nil {
 		return err
 	}
 
 	mgr.fireEvent(Startup)
-
 	go heartbeat(mgr)
 
 	mgr.Logger.Infof("faktory_worker_go %s PID %d now ready to process jobs", Version, os.Getpid())
@@ -162,21 +172,20 @@ func (mgr *Manager) RunWithContext(ctx context.Context) error {
 		go process(mgr, i)
 	}
 
-	if ctx == nil {
-		sig := <-hookSignals()
-		mgr.handleEvent(signalMap[sig])
-	} else {
-		<-ctx.Done()
-		mgr.Terminate(false)
-	}
-
 	return nil
 }
 
 // Run starts processing jobs.
 // This method does not return unless an error is encountered while starting.
 func (mgr *Manager) Run() error {
-	return mgr.RunWithContext(nil)
+	err := mgr.boot()
+	if err != nil {
+		return err
+	}
+	for {
+		sig := <-hookSignals()
+		mgr.handleEvent(signalMap[sig])
+	}
 }
 
 // One of the Process*Queues methods should be called once before Run()

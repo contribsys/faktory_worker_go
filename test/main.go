@@ -84,7 +84,7 @@ func main() {
 	}()
 
 	// Start processing jobs, this method does not return
-	mgr.Run()
+	_ = mgr.Run()
 }
 
 func unique() {
