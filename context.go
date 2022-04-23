@@ -80,6 +80,9 @@ func (h *jobHelper) Bid() string {
 	if b, ok := h.job.GetCustom("bid"); ok {
 		return b.(string)
 	}
+	if b, ok := h.job.GetCustom("_bid"); ok { // for batch complete jobs
+		return b.(string)
+	}
 	return ""
 }
 func (h *jobHelper) JobType() string {
