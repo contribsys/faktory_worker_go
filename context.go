@@ -41,8 +41,11 @@ type Helper interface {
 	JobType() string
 
 	// Custom provides access to the job custom hash.
+	// Returns the value and `ok=true` if the key was found.
+	// If not, returns `nil` and `ok=false`.
+	//
 	// No type checking is performed, please use with caution.
-	Custom(key string) interface{}
+	Custom(key string) (value interface{}, ok bool)
 
 	// Faktory Enterprise:
 	// the BID of the Batch associated with this job
@@ -77,6 +80,9 @@ type jobHelper struct {
 	pool *faktory.Pool
 }
 
+// ensure type compatibility
+var _ Helper = &jobHelper{}
+
 func (h *jobHelper) Jid() string {
 	return h.job.Jid
 }
@@ -89,11 +95,8 @@ func (h *jobHelper) Bid() string {
 func (h *jobHelper) JobType() string {
 	return h.job.Type
 }
-func (h *jobHelper) Custom(key string) interface{} {
-	if b, ok := h.job.GetCustom(key); ok {
-		return b
-	}
-	return nil
+func (h *jobHelper) Custom(key string) (value interface{}, ok bool) {
+	return h.job.GetCustom(key)
 }
 
 // Caution: this method must only be called within the
