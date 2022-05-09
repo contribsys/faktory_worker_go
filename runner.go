@@ -3,6 +3,7 @@ package faktory_worker
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"runtime"
@@ -79,7 +80,7 @@ func process(mgr *Manager, idx int) {
 	// delay initial fetch randomly to prevent thundering herd.
 	// this will pause between 0 and 2B nanoseconds, i.e. 0-2 seconds
 	time.Sleep(time.Duration(rand.Int31()))
-	sleep := 1
+	sleep := 1.0
 	for {
 		if mgr.state != "" {
 			return
@@ -96,11 +97,25 @@ func process(mgr *Manager, idx int) {
 		if err != nil {
 			mgr.Logger.Debug(err)
 			if _, ok := err.(*NoHandlerError); !ok {
-				time.Sleep(1 * time.Second)
+				// if we don't know how to process this jobtype,
+				// we Fail it and sleep for a bit so we don't get
+				// caught in an infinite loop "processing" a queue full
+				// of jobs we don't understand.
+				time.Sleep(50 * time.Millisecond)
+			} else {
+				// if we have an unknown error processing a job, use
+				// exponential backoff so we don't constantly slam the
+				// log with "connection refused" errors or similar.
+				select {
+				case <-mgr.done:
+				case <-time.After(time.Duration(sleep) * time.Second):
+					sleep = math.Max(sleep*2, 30)
+				}
 			}
+		} else {
+			// success, reset sleep timer
+			sleep = 1.0
 		}
-		time.Sleep(time.Duration(sleep) * time.Second)
-		sleep *= 2
 	}
 }
 
@@ -144,6 +159,7 @@ func processOne(mgr *Manager) error {
 		mgr.Logger.Errorf("Error running %s job %s: %v", job.Type, job.Jid, joberr)
 	}
 
+	sleep := 1.0
 	for {
 		// we want to report the result back to Faktory.
 		// we stay in this loop until we successfully report.
@@ -161,9 +177,9 @@ func processOne(mgr *Manager) error {
 		case <-mgr.done:
 			mgr.Logger.Error(fmt.Errorf("Unable to report JID %v result to Faktory: %w", job.Jid, err))
 			return nil
-		default:
-			mgr.Logger.Debug(err)
-			time.Sleep(1 * time.Second)
+		case <-time.After(time.Duration(sleep) * time.Second):
+			sleep = math.Max(sleep*2, 30)
+			mgr.Logger.Debug(fmt.Errorf("Unable to report JID %v result to Faktory: %w", job.Jid, err))
 		}
 	}
 }
