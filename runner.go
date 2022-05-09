@@ -79,7 +79,7 @@ func process(mgr *Manager, idx int) {
 	// delay initial fetch randomly to prevent thundering herd.
 	// this will pause between 0 and 2B nanoseconds, i.e. 0-2 seconds
 	time.Sleep(time.Duration(rand.Int31()))
-
+	sleep := 1
 	for {
 		if mgr.state != "" {
 			return
@@ -99,6 +99,8 @@ func process(mgr *Manager, idx int) {
 				time.Sleep(1 * time.Second)
 			}
 		}
+		time.Sleep(time.Duration(sleep) * time.Second)
+		sleep *= 2
 	}
 }
 
