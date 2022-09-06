@@ -159,6 +159,7 @@ func processOne(mgr *Manager) error {
 		mgr.Logger.Errorf("Error running %s job %s: %v", job.Type, job.Jid, joberr)
 	}
 
+	until := time.After(30 * time.Second)
 	sleep := 1.0
 	for {
 		// we want to report the result back to Faktory.
@@ -174,6 +175,9 @@ func processOne(mgr *Manager) error {
 			return nil
 		}
 		select {
+		case <-until:
+			mgr.Logger.Error(fmt.Errorf("Failed to report JID %v result to Faktory: %w", job.Jid, err))
+			return nil
 		case <-mgr.done:
 			mgr.Logger.Error(fmt.Errorf("Unable to report JID %v result to Faktory: %w", job.Jid, err))
 			return nil
