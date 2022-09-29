@@ -47,7 +47,11 @@ func heartbeat(mgr *Manager) {
 					// If our heartbeat expires, we must restart and re-authenticate.
 					// Use a signal so we can unwind and shutdown cleanly.
 					mgr.Logger.Warn("Faktory heartbeat has expired, shutting down...")
-					_ = syscall.Kill(os.Getpid(), syscall.SIGTERM)
+					if process, err := os.FindProcess(os.Getpid()); err != nil {
+						mgr.Logger.Errorf("Could not find worker process %d: %v", os.Getpid(), err)
+					} else {
+						_ = process.Signal(syscall.SIGTERM)
+					}
 				}
 				if err != nil || data == "" {
 					return err
