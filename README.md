@@ -34,6 +34,7 @@ In this example, send the TERM or INT signal.
 package main
 
 import (
+  "context"
   "log"
 
   worker "github.com/contribsys/faktory_worker_go"
