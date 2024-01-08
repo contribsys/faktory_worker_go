@@ -179,7 +179,7 @@ which is thread-safe.
 See the Faktory Client API for
 [Go](https://github.com/contribsys/faktory/blob/main/client) or
 [Ruby](https://github.com/contribsys/faktory_worker_ruby/blob/main/lib/faktory/client.rb).
-You can implement a Faktory client in any programming langauge.
+You can implement a Faktory client in any programming language.
 See [the wiki](https://github.com/contribsys/faktory/wiki) for details.
 
 # Author
