@@ -157,7 +157,7 @@ func Push(mgr worker.Manager, job *faktory.Job) error {
 
 func syntheticPush(mgr worker.Manager, job *faktory.Job) error {
 	if mgr.IsRegistered(job.Type) {
-		mgr.Dispath(job)
+		return mgr.Dispatch(job)
 	}
 
 	return fmt.Errorf("inline job execution failed, unregistered job type %s", job.Type)
