@@ -138,6 +138,46 @@ func main() {
 
 See `test/main.go` for a working example.
 
+# Testing
+
+`faktory_worker_go` provides helpers that allow you to configure tests to execute jobs inline if you prefer. In this example, the application has defined its own wrapper function for `client.Push`.
+
+```go
+import (
+	faktory "github.com/contribsys/faktory/client"
+	worker "github.com/contribsys/faktory_worker_go"
+)
+
+func Push(mgr worker.Manager, job *faktory.Job) error {
+	if viper.GetBool("faktory_inline") {
+		return syntheticPush(mgr worker.Manager, job)
+	}
+	return realPush(job)
+}
+
+func syntheticPush(mgr worker.Manager, job *faktory.Job) error {
+	if mgr.IsRegistered(job.Type) {
+		mgr.Dispath(job)
+	}
+
+	return fmt.Errorf("inline job execution failed, unregistered job type %s", job.Type)
+}
+
+func realPush(job *faktory.Job) error {
+	client, err := faktory.Open()
+	if err != nil {
+		return errors.Wrap(err, "failed to open Faktory client connection")
+	}
+
+	err = client.Push(job)
+	if err != nil {
+		return errors.Wrap(err, "failed to enqueue Faktory job")
+	}
+
+	return nil
+}
+```
+
 # FAQ
 
 * How do I specify the Faktory server location?
