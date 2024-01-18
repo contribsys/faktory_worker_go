@@ -41,11 +41,27 @@ type Manager struct {
 // Register a handler for the given jobtype.  It is expected that all jobtypes
 // are registered upon process startup.
 //
-//    mgr.Register("ImportantJob", ImportantFunc)
+//	mgr.Register("ImportantJob", ImportantFunc)
 func (mgr *Manager) Register(name string, fn Perform) {
 	mgr.jobHandlers[name] = func(ctx context.Context, job *faktory.Job) error {
 		return fn(ctx, job.Args...)
 	}
+}
+
+// IsRegistered checks if a given job name is registered with the manager.
+//
+//	mgr.IsRegistered("SomeJob")
+func (mgr *Manager) IsRegistered(name string) bool {
+	_, ok := mgr.jobHandlers[name]
+
+	return ok
+}
+
+// Dispatch immediately executes a job, including all middleware on the manager.
+func (mgr *Manager) Dispatch(job *faktory.Job) error {
+	perform := mgr.jobHandlers[job.Type]
+
+	return dispatch(mgr.middleware, jobContext(mgr.Pool, job), job, perform)
 }
 
 // Register a callback to be fired when a process lifecycle event occurs.
