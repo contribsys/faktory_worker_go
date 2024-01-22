@@ -130,7 +130,7 @@ func NewManager() *Manager {
 	}
 }
 
-func (mgr *Manager) setUpWorkerProcess() error {
+func (mgr *Manager) SetUpWorkerProcess() error {
 	mgr.mut.Lock()
 	defer mgr.mut.Unlock()
 
@@ -174,7 +174,7 @@ func (mgr *Manager) RunWithContext(ctx context.Context) error {
 }
 
 func (mgr *Manager) boot() error {
-	err := mgr.setUpWorkerProcess()
+	err := mgr.SetUpWorkerProcess()
 	if err != nil {
 		return err
 	}

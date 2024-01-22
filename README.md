@@ -156,11 +156,22 @@ func Push(mgr worker.Manager, job *faktory.Job) error {
 }
 
 func syntheticPush(mgr worker.Manager, job *faktory.Job) error {
-	if mgr.IsRegistered(job.Type) {
-		return mgr.Dispatch(job)
+	if !mgr.IsRegistered(job.Type) {
+		return fmt.Errorf("failed to execute job type %s inline, job not registered", job.Type)
 	}
 
-	return fmt.Errorf("inline job execution failed, unregistered job type %s", job.Type)
+	// Manually setting the worker defaults is a threadsafe alternative to mgr.Run/mgr.RunWithContext, which can trigger data races
+	err := mgr.SetUpWorkerProcess()
+	if err != nil {
+		return fmt.Errorf("couldn't set up Faktory worker process in synthetic push: %w", err)
+	}
+
+	err := mgr.Dispatch(job)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("job was immediately executed but failed. Job type %s, with args %+v", job.Type, job.Args))
+	}
+
+	return nil
 }
 
 func realPush(job *faktory.Job) error {
