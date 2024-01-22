@@ -144,7 +144,7 @@ func processOne(mgr *Manager) error {
 		}
 	}
 
-	if !mgr.IsRegistered(job.Type) {
+	if !mgr.isRegistered(job.Type) {
 		je := &NoHandlerError{JobType: job.Type}
 		err := mgr.with(func(c *faktory.Client) error {
 			return c.Fail(job.Jid, je, nil)
@@ -155,7 +155,7 @@ func processOne(mgr *Manager) error {
 		return je
 	}
 
-	joberr := mgr.Dispatch(job)
+	joberr := mgr.dispatch(job)
 	if joberr != nil {
 		// job errors are normal and expected, we don't return early from them
 		mgr.Logger.Errorf("Error running %s job %s: %v", job.Type, job.Jid, joberr)
