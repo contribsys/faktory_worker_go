@@ -48,20 +48,40 @@ func (mgr *Manager) Register(name string, fn Perform) {
 	}
 }
 
-// IsRegistered checks if a given job name is registered with the manager.
+// isRegistered checks if a given job name is registered with the manager.
 //
-//	mgr.IsRegistered("SomeJob")
-func (mgr *Manager) IsRegistered(name string) bool {
+//	mgr.isRegistered("SomeJob")
+func (mgr *Manager) isRegistered(name string) bool {
 	_, ok := mgr.jobHandlers[name]
 
 	return ok
 }
 
-// Dispatch immediately executes a job, including all middleware.
-func (mgr *Manager) Dispatch(job *faktory.Job) error {
+// dispatch immediately executes a job, including all middleware.
+func (mgr *Manager) dispatch(job *faktory.Job) error {
 	perform := mgr.jobHandlers[job.Type]
 
 	return dispatch(mgr.middleware, jobContext(mgr.Pool, job), job, perform)
+}
+
+// InlineDispatch is designed for testing. It immediate executes a job, including all middleware,
+// as well as performs manager setup if needed.
+func (mgr *Manager) InlineDispatch(job *faktory.Job) error {
+	if !mgr.isRegistered(job.Type) {
+		return fmt.Errorf("failed to dispatch inline for job type %s; job not registered", job.Type)
+	}
+
+	err := mgr.setUpWorkerProcess()
+	if err != nil {
+		return fmt.Errorf("couldn't set up worker process for inline dispatch - %w", err)
+	}
+
+	err = mgr.dispatch(job)
+	if err != nil {
+		return fmt.Errorf("job was dispatched inline but failed. Job type %s, with args %+v - %w", job.Type, job.Args, err)
+	}
+
+	return nil
 }
 
 // Register a callback to be fired when a process lifecycle event occurs.
@@ -130,7 +150,7 @@ func NewManager() *Manager {
 	}
 }
 
-func (mgr *Manager) SetUpWorkerProcess() error {
+func (mgr *Manager) setUpWorkerProcess() error {
 	mgr.mut.Lock()
 	defer mgr.mut.Unlock()
 
@@ -174,7 +194,7 @@ func (mgr *Manager) RunWithContext(ctx context.Context) error {
 }
 
 func (mgr *Manager) boot() error {
-	err := mgr.SetUpWorkerProcess()
+	err := mgr.setUpWorkerProcess()
 	if err != nil {
 		return err
 	}
