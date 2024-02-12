@@ -1,16 +1,16 @@
 module github.com/contribsys/faktory_worker_go
 
-go 1.17
+go 1.20
+
+toolchain go1.21.4
 
 require (
-	github.com/contribsys/faktory v1.6.0
-	github.com/stretchr/testify v1.7.0
+	github.com/contribsys/faktory v1.8.0
+	github.com/stretchr/testify v1.8.4
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-//replace github.com/contribsys/faktory => /Users/mperham/src/github.com/contribsys/faktory

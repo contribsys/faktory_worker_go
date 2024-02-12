@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"time"
 
 	faktory "github.com/contribsys/faktory/client"
 )
@@ -161,7 +160,6 @@ func (mgr *Manager) setUpWorkerProcess() error {
 	// This will signal to Faktory that all connections from this process
 	// are worker connections.
 	if len(mgr.ProcessWID) == 0 {
-		rand.Seed(time.Now().UnixNano())
 		faktory.RandomProcessWid = strconv.FormatInt(rand.Int63(), 32)
 	} else {
 		faktory.RandomProcessWid = mgr.ProcessWID
