@@ -28,14 +28,13 @@ var (
 // because execution should be orthogonal to
 // most of the Job payload contents.
 //
-//   func myJob(ctx context.Context, args ...interface{}) error {
-//     helper := worker.HelperFor(ctx)
-//     jid := helper.Jid()
+//	  func myJob(ctx context.Context, args ...interface{}) error {
+//	    helper := worker.HelperFor(ctx)
+//	    jid := helper.Jid()
 //
-//     helper.With(func(cl *faktory.Client) error {
-//       cl.Push("anotherJob", 4, "arg")
-//		 })
-//
+//	    helper.With(func(cl *faktory.Client) error {
+//	      cl.Push("anotherJob", 4, "arg")
+//			 })
 type Helper interface {
 	Jid() string
 	JobType() string
@@ -127,8 +126,7 @@ func HelperFor(ctx context.Context) Helper {
 	return nil
 }
 
-func jobContext(pool *faktory.Pool, job *faktory.Job) context.Context {
-	ctx := context.Background()
+func jobContext(ctx context.Context, pool *faktory.Pool, job *faktory.Job) context.Context {
 	ctx = context.WithValue(ctx, poolKey, pool)
 	ctx = context.WithValue(ctx, jobKey, job)
 	return ctx

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	faktory "github.com/contribsys/faktory/client"
 )
@@ -16,11 +17,12 @@ import (
 type Manager struct {
 	mut sync.Mutex
 
-	Concurrency int
-	Logger      Logger
-	ProcessWID  string
-	Labels      []string
-	Pool        *faktory.Pool
+	Concurrency     int
+	Logger          Logger
+	ProcessWID      string
+	Labels          []string
+	Pool            *faktory.Pool
+	ShutdownTimeout time.Duration
 
 	queues     []string
 	middleware []MiddlewareFunc
@@ -31,6 +33,7 @@ type Manager struct {
 	shutdownWaiter *sync.WaitGroup
 	jobHandlers    map[string]Handler
 	eventHandlers  map[lifecycleEventType][]LifecycleEventHandler
+	cancelFunc     context.CancelFunc
 
 	// This only needs to be computed once. Store it here to keep things fast.
 	weightedPriorityQueuesEnabled bool
@@ -57,10 +60,10 @@ func (mgr *Manager) isRegistered(name string) bool {
 }
 
 // dispatch immediately executes a job, including all middleware.
-func (mgr *Manager) dispatch(job *faktory.Job) error {
+func (mgr *Manager) dispatch(ctx context.Context, job *faktory.Job) error {
 	perform := mgr.jobHandlers[job.Type]
 
-	return dispatch(mgr.middleware, jobContext(mgr.Pool, job), job, perform)
+	return dispatch(jobContext(ctx, mgr.Pool, job), mgr.middleware, job, perform)
 }
 
 // InlineDispatch is designed for testing. It immediate executes a job, including all middleware,
@@ -75,7 +78,7 @@ func (mgr *Manager) InlineDispatch(job *faktory.Job) error {
 		return fmt.Errorf("couldn't set up worker process for inline dispatch - %w", err)
 	}
 
-	err = mgr.dispatch(job)
+	err = mgr.dispatch(context.Background(), job)
 	if err != nil {
 		return fmt.Errorf("job was dispatched inline but failed. Job type %s, with args %+v - %w", job.Type, job.Args, err)
 	}
@@ -117,8 +120,14 @@ func (mgr *Manager) Terminate(reallydie bool) {
 	mgr.Logger.Info("Shutting down...")
 	mgr.state = "terminate"
 	close(mgr.done)
+
+	if mgr.cancelFunc != nil {
+		// cancel any jobs which are lingering
+		time.AfterFunc(mgr.ShutdownTimeout, mgr.cancelFunc)
+	}
 	mgr.fireEvent(Shutdown)
-	mgr.shutdownWaiter.Wait()
+	mgr.shutdownWaiter.Wait() // can't pass this point until all jobs are done
+
 	mgr.Pool.Close()
 	mgr.Logger.Info("Goodbye")
 	if reallydie {
@@ -133,6 +142,12 @@ func NewManager() *Manager {
 		Logger:      NewStdLogger(),
 		Labels:      []string{"golang-" + Version},
 		Pool:        nil,
+
+		// best practice is to give jobs 25 seconds to finish their work
+		// and then use the last 5 seconds to force any lingering jobs to
+		// stop by closing their Context. Many cloud services default to a
+		// hard 30 second timeout beforing KILLing the process.
+		ShutdownTimeout: 25 * time.Second,
 
 		state:          "",
 		queues:         []string{"default"},
@@ -182,7 +197,7 @@ func (mgr *Manager) setUpWorkerProcess() error {
 // If the context is present then os signals will be ignored, the context must be canceled for the method to return
 // after running.
 func (mgr *Manager) RunWithContext(ctx context.Context) error {
-	err := mgr.boot()
+	err := mgr.boot(ctx)
 	if err != nil {
 		return err
 	}
@@ -191,7 +206,7 @@ func (mgr *Manager) RunWithContext(ctx context.Context) error {
 	return nil
 }
 
-func (mgr *Manager) boot() error {
+func (mgr *Manager) boot(ctx context.Context) error {
 	err := mgr.setUpWorkerProcess()
 	if err != nil {
 		return err
@@ -203,7 +218,7 @@ func (mgr *Manager) boot() error {
 	mgr.Logger.Infof("faktory_worker_go %s PID %d now ready to process jobs", Version, os.Getpid())
 	mgr.Logger.Debugf("Using Faktory Client API %s", faktory.Version)
 	for i := 0; i < mgr.Concurrency; i++ {
-		go process(mgr, i)
+		go process(ctx, mgr, i)
 	}
 
 	return nil
@@ -212,7 +227,10 @@ func (mgr *Manager) boot() error {
 // Run starts processing jobs.
 // This method does not return unless an error is encountered while starting.
 func (mgr *Manager) Run() error {
-	err := mgr.boot()
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	mgr.cancelFunc = cancel
+	err := mgr.boot(ctx)
 	if err != nil {
 		return err
 	}

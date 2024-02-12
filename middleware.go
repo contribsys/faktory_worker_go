@@ -14,7 +14,7 @@ func (mgr *Manager) Use(middleware ...MiddlewareFunc) {
 	mgr.middleware = append(mgr.middleware, middleware...)
 }
 
-func dispatch(chain []MiddlewareFunc, ctx context.Context, job *faktory.Job, perform Handler) error {
+func dispatch(ctx context.Context, chain []MiddlewareFunc, job *faktory.Job, perform Handler) error {
 	if len(chain) == 0 {
 		return perform(ctx, job)
 	}
@@ -22,6 +22,6 @@ func dispatch(chain []MiddlewareFunc, ctx context.Context, job *faktory.Job, per
 	link := chain[0]
 	rest := chain[1:]
 	return link(ctx, job, func(ctx context.Context) error {
-		return dispatch(rest, ctx, job, perform)
+		return dispatch(ctx, rest, job, perform)
 	})
 }
