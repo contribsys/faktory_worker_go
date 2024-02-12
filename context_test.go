@@ -1,9 +1,11 @@
 package faktory_worker
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	faktory "github.com/contribsys/faktory/client"
 	"github.com/stretchr/testify/assert"
@@ -21,15 +23,16 @@ func TestSimpleContext(t *testing.T) {
 	//cl, err := faktory.Open()
 	//assert.NoError(t, err)
 	//cl.Push(job)
-
-	ctx := jobContext(pool, job)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	ctx = jobContext(ctx, pool, job)
 	help := HelperFor(ctx)
 	assert.Equal(t, help.Jid(), job.Jid)
 	assert.Empty(t, help.Bid())
 	assert.Equal(t, "something", help.JobType())
 
 	_, ok := ctx.Deadline()
-	assert.False(t, ok)
+	assert.True(t, ok)
 
 	//assert.NoError(t, ctx.TrackProgress(45, "Working....", nil))
 
@@ -51,7 +54,9 @@ func TestBatchContext(t *testing.T) {
 	job.SetCustom("track", 1)
 	job.SetCustom("bid", "nosuchbatch")
 
-	ctx := jobContext(pool, job)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	ctx = jobContext(ctx, pool, job)
 	help := HelperFor(ctx)
 	assert.Equal(t, help.Jid(), job.Jid)
 	assert.Equal(t, "nosuchbatch", help.Bid())

@@ -32,11 +32,17 @@ func batchFunc(ctx context.Context, args ...interface{}) error {
 	return nil
 }
 func fastFunc(ctx context.Context, args ...interface{}) error {
-	// help := worker.HelperFor(ctx)
-	// log.Printf("Working on job %s\n", help.Jid())
-	// if rand.Int31()%10 == 1 {
-	// return errors.New("oops")
-	// }
+	return nil
+}
+func longFunc(ctx context.Context, args ...interface{}) error {
+	help := worker.HelperFor(ctx)
+	log.Printf("Working on job %s\n", help.Jid())
+	select {
+	case <-ctx.Done():
+		fmt.Printf("Context closed, SUCCESS")
+	case <-time.After(30 * time.Second):
+		fmt.Printf("30 sec timeout, FAIL")
+	}
 	return nil
 }
 
@@ -57,6 +63,7 @@ func main() {
 	mgr.Register("SomeWorker", someFunc)
 	mgr.Register("ImportImageJob", batchFunc)
 	mgr.Register("ImportImageSuccess", batchFunc)
+	mgr.Register("Long", longFunc)
 	mgr.Register("fast", fastFunc)
 	//mgr.Register("AnotherJob", anotherFunc)
 
@@ -74,12 +81,13 @@ func main() {
 	go func() {
 		batch()
 		unique()
+
 		for {
 			if quit {
 				return
 			}
 			produce(mgr)
-			time.Sleep(1 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 	}()
 
@@ -102,7 +110,7 @@ func unique() {
 			return nil
 		}
 
-		job := faktory.NewJob("fast", 1, 2, 3)
+		job := faktory.NewJob("Long", 1, 2, 3)
 		job.SetCustom("unique_for", 0.5)
 		err := cl.Push(job)
 		if err != nil {
@@ -188,13 +196,15 @@ func batch() {
 
 // Push something for us to work on.
 func produce(mgr *worker.Manager) {
-	job := faktory.NewJob("SomeJob", 1, 2, "hello")
-	job.Custom = map[string]interface{}{
+	j1 := faktory.NewJob("SomeJob", 1, 2, "hello")
+	j1.Custom = map[string]interface{}{
 		"hello": "world",
 	}
+	j2 := faktory.NewJob("Long", 3, 2, 1)
 
 	err := mgr.Pool.With(func(cl *faktory.Client) error {
-		return cl.Push(job)
+		_, err := cl.PushBulk([]*faktory.Job{j1, j2})
+		return err
 	})
 	if err != nil {
 		fmt.Printf("produce: %v\n", err)

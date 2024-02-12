@@ -1,5 +1,16 @@
 # faktory\_worker\_go
 
+## 1.7.0
+
+- Implement hard shutdown timeout of 25 seconds. [#76]
+  Your job funcs should implement `context` package semantics.
+  If you use `Manager.Run()`, FWG will now gracefully shutdown.
+  After a default delay of 25 seconds, FWG will cancel the root Context which should quickly cancel any lingering jobs running under that Manager.
+  If your jobs run long and do not respond to context cancellation, you risk orphaning any jobs in-progress.
+  They will linger on the Busy tab until the job's `reserve_for` timeout.
+
+  Please also note that `RunWithContext` added in `1.6.0` does not implement the shutdown delay but the README example contains the code to implement it.
+
 ## 1.6.0
 
 - Upgrade to Go 1.17 and Faktory 1.6.0.

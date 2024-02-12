@@ -3,6 +3,7 @@ package faktory_worker
 import (
 	"context"
 	"testing"
+	"time"
 
 	faktory "github.com/contribsys/faktory/client"
 	"github.com/stretchr/testify/assert"
@@ -34,12 +35,14 @@ func TestMiddleware(t *testing.T) {
 		return nil
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 	job := faktory.NewJob("blah", 1, 2)
-	ctx := jobContext(mgr.Pool, job)
+	ctx = jobContext(ctx, mgr.Pool, job)
 	assert.Nil(t, ctx.Value(EXAMPLE))
 	assert.EqualValues(t, 0, counter)
 
-	err = dispatch(mgr.middleware, ctx, job, blahFunc)
+	err = dispatch(ctx, mgr.middleware, job, blahFunc)
 
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, counter)

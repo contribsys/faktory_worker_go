@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	faktory "github.com/contribsys/faktory/client"
 	"github.com/stretchr/testify/assert"
@@ -75,7 +76,10 @@ func TestLiveServer(t *testing.T) {
 		err := cl.Push(j)
 		assert.NoError(t, err)
 
-		err = processOne(mgr)
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		err = processOne(ctx, mgr)
 		assert.Error(t, err)
 		_, ok := err.(*NoHandlerError)
 		assert.True(t, ok)
@@ -86,7 +90,7 @@ func TestLiveServer(t *testing.T) {
 		err = cl.Push(j)
 		assert.NoError(t, err)
 
-		err = processOne(mgr)
+		err = processOne(ctx, mgr)
 		assert.NoError(t, err)
 		return nil
 	})

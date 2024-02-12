@@ -1,6 +1,7 @@
 package faktory_worker
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -77,7 +78,7 @@ func heartbeat(mgr *Manager) {
 	}
 }
 
-func process(mgr *Manager, idx int) {
+func process(ctx context.Context, mgr *Manager, idx int) {
 	mgr.shutdownWaiter.Add(1)
 	defer mgr.shutdownWaiter.Done()
 
@@ -97,7 +98,7 @@ func process(mgr *Manager, idx int) {
 		default:
 		}
 
-		err := processOne(mgr)
+		err := processOne(ctx, mgr)
 		if err != nil {
 			mgr.Logger.Debug(err)
 			if _, ok := err.(*NoHandlerError); !ok {
@@ -123,7 +124,7 @@ func process(mgr *Manager, idx int) {
 	}
 }
 
-func processOne(mgr *Manager) error {
+func processOne(ctx context.Context, mgr *Manager) error {
 	var job *faktory.Job
 
 	// explicit scopes to limit variable visibility
@@ -155,7 +156,7 @@ func processOne(mgr *Manager) error {
 		return je
 	}
 
-	joberr := mgr.dispatch(job)
+	joberr := mgr.dispatch(ctx, job)
 	if joberr != nil {
 		// job errors are normal and expected, we don't return early from them
 		mgr.Logger.Errorf("Error running %s job %s: %v", job.Type, job.Jid, joberr)

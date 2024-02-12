@@ -2,13 +2,12 @@
 
 ![travis](https://travis-ci.org/contribsys/faktory_worker_go.svg?branch=master)
 
-This repository provides a Faktory worker process for Go apps.  This
-worker process fetches background jobs from the Faktory server and processes them.
+This repository provides a Faktory worker process for Go apps.
+This worker process fetches background jobs from the Faktory server and processes them.
 
 How is this different from all the other Go background worker libraries?
-They all use Redis or another "dumb" datastore.  This library is far
-simpler because the Faktory server implements most of the data storage, retry logic,
-Web UI, etc.
+They all use Redis or another "dumb" datastore.
+This library is far simpler because the Faktory server implements most of the data storage, retry logic, Web UI, etc.
 
 # Installation
 
@@ -55,6 +54,8 @@ func main() {
 
   // use up to N goroutines to execute jobs
   mgr.Concurrency = 20
+  // wait up to 25 seconds to let jobs in progress finish
+  mgr.ShutdownTimeout = 25 * time.Second
 
   // pull jobs from these queues, in this order of precedence
   mgr.ProcessStrictPriorityQueues("critical", "default", "bulk")
@@ -99,6 +100,8 @@ func main() {
 
   // use up to N goroutines to execute jobs
   mgr.Concurrency = 20
+  // wait up to 25 seconds to let jobs in progress finish
+  mgr.ShutdownTimeout = 25 * time.Second
 
   // pull jobs from these queues, in this order of precedence
   mgr.ProcessStrictPriorityQueues("critical", "default", "bulk")
@@ -116,6 +119,7 @@ func main() {
     stopSignals := []os.Signal{
       syscall.SIGTERM,
       syscall.SIGINT,
+      // TODO Implement the TSTP signal to call mgr.Quiet()
     }
     stop := make(chan os.Signal, len(stopSignals))
     for _, s := range stopSignals {
@@ -127,16 +131,17 @@ func main() {
       case <-ctx.Done():
         return
       case <-stop:
-        cancel()
+        break
       }
     }
+
+    _ = time.AfterFunc(mgr.ShutdownTimeout, cancel)
+    _ = mgr.Terminate(true) // never returns
   }()
 
   <-ctx.Done()
 }
 ```
-
-See `test/main.go` for a working example.
 
 # Testing
 
@@ -225,7 +230,7 @@ See [the wiki](https://github.com/contribsys/faktory/wiki) for details.
 
 # Author
 
-Mike Perham, @getajobmike, @contribsys
+Mike Perham, https://ruby.social/@getajobmike
 
 # License
 
