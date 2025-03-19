@@ -143,6 +143,18 @@ func main() {
 }
 ```
 
+# Middleware
+
+Attach middleware if you want to run code around every job execution with full access to the Job object. Returning an error will FAIL the job, returning nil will ACK it.
+
+```go
+mgr := worker.NewManager()
+mgr.Use(func(ctx context.Context, job *faktory.Job, next func(context.Context) error) error {
+  modctx := context.WithValue(ctx, EXAMPLE, 4.0)
+  return next(modctx)
+})
+```
+
 # Testing
 
 `faktory_worker_go` provides helpers that allow you to configure tests to execute jobs inline if you prefer. In this example, the application has defined its own wrapper function for `client.Push`.
