@@ -1,6 +1,7 @@
 package faktory_worker
 
 import (
+	"context"
 	"errors"
 	"log"
 	"os"
@@ -98,4 +99,32 @@ func withServer(t *testing.T, lvl string, mgr *Manager, fn func(cl *faktory.Clie
 	} else {
 		assert.NoError(t, err)
 	}
+}
+
+func TestInlineDispatchArgsSerialization(t *testing.T) {
+	mgr := NewManager()
+
+	var receivedArgs []interface{}
+	mgr.Register("test_job", func(ctx context.Context, args ...interface{}) error {
+		receivedArgs = args
+		return nil
+	})
+
+	// Create a temporary struct that will become a map after JSON serialization
+	type tempStruct struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+
+	job := faktory.NewJob("test_job", tempStruct{Name: "John", Age: 30})
+
+	err := mgr.InlineDispatch(job)
+	assert.NoError(t, err)
+
+	// Verify that the struct was converted to a map during serialization
+	assert.Len(t, receivedArgs, 1)
+	argMap, ok := receivedArgs[0].(map[string]interface{})
+	assert.True(t, ok, "Expected argument to be converted to map[string]interface{}")
+	assert.Equal(t, "John", argMap["name"])
+	assert.Equal(t, float64(30), argMap["age"]) // JSON converts numbers to float64
 }
