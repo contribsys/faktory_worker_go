@@ -2,6 +2,7 @@ package faktory_worker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -66,6 +67,20 @@ func (mgr *Manager) dispatch(ctx context.Context, job *faktory.Job) error {
 	return dispatch(jobContext(ctx, mgr.Pool, job), mgr.middleware, job, perform)
 }
 
+// serializeArgs performs a JSON round trip on job arguments to match Faktory behavior
+func serializeArgs(args []interface{}) ([]interface{}, error) {
+	data, err := json.Marshal(args)
+	if err != nil {
+		return nil, err
+	}
+	var result []interface{}
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // InlineDispatch is designed for testing. It immediate executes a job, including all middleware,
 // as well as performs manager setup if needed.
 func (mgr *Manager) InlineDispatch(job *faktory.Job) error {
@@ -77,6 +92,12 @@ func (mgr *Manager) InlineDispatch(job *faktory.Job) error {
 	if err != nil {
 		return fmt.Errorf("couldn't set up worker process for inline dispatch - %w", err)
 	}
+
+	serializedArgs, err := serializeArgs(job.Args)
+	if err != nil {
+		return fmt.Errorf("failed to serialize job arguments - %w", err)
+	}
+	job.Args = serializedArgs
 
 	err = mgr.dispatch(context.Background(), job)
 	if err != nil {
