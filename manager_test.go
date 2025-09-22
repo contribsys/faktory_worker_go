@@ -1,6 +1,7 @@
 package faktory_worker
 
 import (
+	"context"
 	"errors"
 	"log"
 	"os"
@@ -98,4 +99,68 @@ func withServer(t *testing.T, lvl string, mgr *Manager, fn func(cl *faktory.Clie
 	} else {
 		assert.NoError(t, err)
 	}
+}
+
+func TestInlineDispatchArgsSerialization(t *testing.T) {
+	mgr := NewManager()
+
+	var receivedArgs []interface{}
+	mgr.Register("test_job", func(ctx context.Context, args ...interface{}) error {
+		receivedArgs = args
+		return nil
+	})
+
+	// Test with various argument types that change during JSON serialization
+	job := faktory.NewJob("test_job",
+		int(42),                                // becomes float64
+		int64(123),                             // becomes float64
+		float32(3.14),                          // becomes float64
+		"hello",                                // remains string
+		true,                                   // remains bool
+		map[string]interface{}{"key": "value"}, // remains map
+	)
+
+	err := mgr.InlineDispatch(job)
+	assert.NoError(t, err)
+
+	// Verify that numeric types were converted to float64 (JSON default)
+	assert.Equal(t, float64(42), receivedArgs[0])
+	assert.Equal(t, float64(123), receivedArgs[1])
+	assert.Equal(t, float64(3.14), receivedArgs[2])
+	assert.Equal(t, "hello", receivedArgs[3])
+	assert.Equal(t, true, receivedArgs[4])
+	assert.Equal(t, map[string]interface{}{"key": "value"}, receivedArgs[5])
+}
+
+func TestInlineDispatchNonRegisteredJob(t *testing.T) {
+	mgr := NewManager()
+
+	job := faktory.NewJob("non_existent_job", "arg1", "arg2")
+
+	err := mgr.InlineDispatch(job)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "job not registered")
+}
+
+func TestSerializeArgs(t *testing.T) {
+	// Test the helper function directly
+	originalArgs := []interface{}{
+		int(42),
+		int64(123),
+		float32(3.14),
+		"hello",
+		true,
+		map[string]interface{}{"key": "value"},
+	}
+
+	serializedArgs, err := serializeArgs(originalArgs)
+	assert.NoError(t, err)
+
+	// Verify that numeric types were converted to float64
+	assert.Equal(t, float64(42), serializedArgs[0])
+	assert.Equal(t, float64(123), serializedArgs[1])
+	assert.Equal(t, float64(3.14), serializedArgs[2])
+	assert.Equal(t, "hello", serializedArgs[3])
+	assert.Equal(t, true, serializedArgs[4])
+	assert.Equal(t, map[string]interface{}{"key": "value"}, serializedArgs[5])
 }
