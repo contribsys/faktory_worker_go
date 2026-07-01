@@ -3,7 +3,6 @@ package faktory_worker
 import (
 	"context"
 	"log"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -23,12 +22,10 @@ func TestRegistration(t *testing.T) {
 }
 
 func TestWeightedQueues(t *testing.T) {
-	rand.Seed(42)
-
 	mgr := NewManager()
 	mgr.ProcessWeightedPriorityQueues(map[string]int{"critical": 3, "default": 2, "bulk": 1})
-	assert.Equal(t, []string{"critical", "default", "bulk"}, mgr.queueList())
-	assert.Equal(t, []string{"bulk", "default", "critical"}, mgr.queueList())
+	assert.Equal(t, []string{"default", "bulk", "critical"}, mgr.queueList())
+	assert.Equal(t, []string{"default", "critical", "bulk"}, mgr.queueList())
 
 	mgr.ProcessWeightedPriorityQueues(map[string]int{"critical": 1, "default": 100, "bulk": 1000})
 	assert.Equal(t, []string{"bulk", "default", "critical"}, mgr.queueList())

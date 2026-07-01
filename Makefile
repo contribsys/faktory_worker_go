@@ -1,5 +1,7 @@
 test:
-	go test ./...
+  # Ensures that our weighted testing uses the same random seed
+  # so results are predictable and assertable.
+	GODEBUG=randautoseed=0 go test ./...
 
 work:
 	go run test/main.go

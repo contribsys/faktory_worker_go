@@ -70,7 +70,7 @@ func TestBatchContext(t *testing.T) {
 			return nil
 		})
 		assert.Error(t, err)
-		assert.Regexp(t, regexp.MustCompile("No such batch"), err.Error())
+		assert.Regexp(t, regexp.MustCompile("no such batch"), err.Error())
 		return nil
 	})
 }
