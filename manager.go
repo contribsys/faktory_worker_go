@@ -193,13 +193,14 @@ func (mgr *Manager) setUpWorkerProcess() error {
 		return fmt.Errorf("cannot start worker process for the mananger in %v state", mgr.state)
 	}
 
+	if mgr.ProcessWID == "" {
+		mgr.ProcessWID = strconv.FormatInt(rand.Int63(), 32)
+	}
+
 	// This will signal to Faktory that all connections from this process
 	// are worker connections.
-	if len(mgr.ProcessWID) == 0 {
-		faktory.RandomProcessWid = strconv.FormatInt(rand.Int63(), 32)
-	} else {
-		faktory.RandomProcessWid = mgr.ProcessWID
-	}
+	faktory.RandomProcessWid = mgr.ProcessWID
+
 	// Set labels to be displayed in the UI
 	faktory.Labels = mgr.Labels
 
